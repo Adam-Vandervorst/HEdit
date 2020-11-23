@@ -1,0 +1,114 @@
+:root {
+    --background-color: #272727;
+    --text-color: #6679;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, Courier, sans-serif;
+}
+
+.welcome {
+    pointer-events: none;
+    user-select: none;
+    font-size: 30px;
+    text-align: center;
+    position: relative;
+    top: 45vh;
+    height: 0;
+    color: #bbb;
+    animation: fadeout 10s forwards;
+}
+
+@keyframes fadeout {
+    0% {
+        opacity: 1;
+    }
+    90% {
+        opacity: .9;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+@media (hover: none) {
+    .pointer {
+        display: none;
+    }
+    .touch {
+        display: block;
+    }
+}
+
+@media (hover: hover) {
+    .pointer {
+        display: block;
+    }
+    .touch {
+        display: none;
+    }
+}
+
+table {
+    pointer-events: none;
+    user-select: none;
+    float: left;
+    padding-top: 25px;
+    padding-left: 25px;
+}
+
+table tr th {
+    font-size: 15px;
+    font-weight: normal;
+    text-align: left;
+    padding-top: 8px;
+    padding-left: 20px;
+    line-height: 30px;
+    color: var(--text-color);
+}
+
+table tr :first-child:not(th) {
+    text-align: right;
+    padding-right: 10px;
+}
+
+table tr td {
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+table tr td div {
+    display: inline-block;
+    padding-right: 0 !important;
+}
+
+table tr td div:first-letter {
+    font-weight: bold;
+}
+
+ul {
+    right: 25px;
+    bottom: 30px;
+    text-align: right;
+    position: absolute;
+    user-select: none;
+    list-style-type: none;
+}
+
+ul li {
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+ul .selected {
+    font-weight: bold;
+}
+
+canvas {
+    top: 0;
+    position: absolute;
+    z-index: -1;
+    background-color: var(--background-color);
+    display: block;
+}
