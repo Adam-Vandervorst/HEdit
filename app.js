@@ -484,7 +484,7 @@ class H {
     deserialize(obj) {
         this.name = obj.name;
         this.mode = this.modes.indexOf(obj.mode);
-        this.nodes = obj.data.map(d => new Node(d, d.data, d.id, '#' + d.color || null));
+        this.nodes = obj.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
         this.edges = [];
         while (this.edges.length !== obj.conn.length) {
             obj.conn.forEach(d => {
