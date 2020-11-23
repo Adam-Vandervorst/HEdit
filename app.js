@@ -158,7 +158,7 @@ class Node {
         this.width = 90; this.height = 50;
         this.x = point.x; this.y = point.y;
         this.name = name; this.id = id;
-        this.color = color || default_node_color;
+        this.color = color || (random_color ? colors[id % colors.length] : default_node_color);
     }
 
     is_interior(point) {
@@ -285,11 +285,6 @@ class Edge {
         ))
     }
 }
-
-const colors = ['#F3C300', '#875692', '#F38400', '#5f8fbd', '#BE0032', '#dec25f', '#848482', '#018856', '#bd6e88', '#0167A5', '#c67562', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26']
-const default_node_color = '#101010', default_edge_color = '#888888', default_edge_color_alt = rgbToHex(hexToRgb(default_edge_color).map(c => c > 0 ? c - 1 : 1));
-const container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
-let board;
 
 class H {
     constructor(name) {
@@ -501,7 +496,6 @@ class H {
     get modeStr() {return this.modes[this.mode]}
 }
 
-
 class Board {
     constructor(start_h) {
         this.draw = this.draw.bind(this);
@@ -680,6 +674,11 @@ class Board {
     }
 }
 
+const colors = ['#F3C300', '#875692', '#F38400', '#5f8fbd', '#BE0032', '#dec25f', '#848482', '#018856', '#bd6e88', '#0167A5', '#c67562', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26']
+const default_node_color = '#101010', default_edge_color = '#888888', default_edge_color_alt = rgbToHex(hexToRgb(default_edge_color).map(c => c > 0 ? c - 1 : 1));
+const container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
+let board, random_color = false;
+
 window.addEventListener('resize', () => {
     board.resetCanvas();
     board.keypressHandler({key: " "});
@@ -688,10 +687,11 @@ window.addEventListener('resize', () => {
 window.addEventListener('load', () => {
     /* hack to prevent firing the init script before the window object's values are populated */
     setTimeout(() => {
-        let start_h = new H();
+        let start_h = new H(), param = null;
         const params = new URLSearchParams(window.location.search);
-        if (data = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(data)));
-        if (data = params.get('uri')) fetch(data, {credentials: 'include'})
+        if (params.has('random_color')) random_color = true;
+        if (param = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(param)));
+        if (param = params.get('uri')) fetch(param, {credentials: 'include'})
             .then(response => response.json())
             .then(data => start_h.deserialize(data))
             .finally(() => board = new Board(start_h));
