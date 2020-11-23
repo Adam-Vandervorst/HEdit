@@ -566,6 +566,7 @@ class Board {
             case "s": download(genFileName(this.h), this.h.serialize()); break;
             case "l": upload(file => this.hs.push(new H().deserialize(file.content)) && this.draw()); break;
             case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
+            case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; break;
             case "g": this.show_grey = !this.show_grey; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
