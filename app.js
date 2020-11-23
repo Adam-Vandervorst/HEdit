@@ -113,7 +113,7 @@ function rgbToHex(rgb) {
 }
 
 function hexToRgb(hex) {
-    const bigint = parseInt(hex.substring(1), 16);
+    const bigint = parseInt(hex[0] == '#' ? hex.substring(1) : hex, 16);
     return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
 }
 
@@ -188,7 +188,7 @@ class Node {
         ctx.fillStyle = "#bbb";
         ctx.font = "15px Arial";
         ctx.textAlign = 'center';
-        let text_bb = ctx.measureText(this.name), chr = '-', 
+        let text_bb = ctx.measureText(this.name), chr = '-',
             c_width = ctx.measureText(chr).width, allowed_width = .75*this.width;
         let display_name = text_bb.width <= allowed_width ? this.name :
             this.name.slice(0, Math.floor(this.name.length*(allowed_width - c_width)/text_bb.width)) + chr;
@@ -476,16 +476,15 @@ class H {
             mode: this.modeStr,
             data: this.nodes.map(n => (n.color == default_node_color ?
                 {id: n.id, data: n.name, x: n.x, y: n.y} :
-                {id: n.id, data: n.name, color: n.color, x: n.x, y: n.y})),
+                {id: n.id, data: n.name, color: n.color.substr(1), x: n.x, y: n.y})),
             conn: this.edges.map(e => e.id)
         });
     }
 
-    deserialize(text) {
-        let obj = JSON.parse(text);
+    deserialize(obj) {
         this.name = obj.name;
         this.mode = this.modes.indexOf(obj.mode);
-        this.nodes = obj.data.map(d => new Node(d, d.data, d.id, d.color || null));
+        this.nodes = obj.data.map(d => new Node(d, d.data, d.id, '#' + d.color || null));
         this.edges = [];
         while (this.edges.length !== obj.conn.length) {
             obj.conn.forEach(d => {
@@ -608,7 +607,7 @@ class Board {
         let on_edge = es.find(e => dist(e, this.touch) <= e.radius/2
                                 || (e.is_interior(this.touch) && e.color === this.touch.hit_color));
         let on_node = this.visible_nodes(es).find(n => n.is_interior(this.touch));
-    
+
         if (this.touch.static) {
             if (this.touch.alt && !on_node && !on_edge)
                 this.h.spawnNode(this.touch);
@@ -691,9 +690,9 @@ window.addEventListener('load', () => {
     setTimeout(() => {
         let start_h = new H();
         const params = new URLSearchParams(window.location.search);
-        if (data = params.get('data')) try {start_h.deserialize(decodeURI(data))} catch {}
+        if (data = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(data)));
         if (data = params.get('uri')) fetch(data, {credentials: 'include'})
-            .then(response => response.text())
+            .then(response => response.json())
             .then(data => start_h.deserialize(data))
             .finally(() => board = new Board(start_h));
         else board = new Board(start_h);
