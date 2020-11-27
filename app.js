@@ -185,13 +185,19 @@ class Node {
             ctx.stroke();
         }
 
-        ctx.fillStyle = "#bbb";
         ctx.font = "15px Arial";
         ctx.textAlign = 'center';
-        let text_bb = ctx.measureText(this.name), chr = '-',
-            c_width = ctx.measureText(chr).width, allowed_width = .75*this.width;
-        let display_name = text_bb.width <= allowed_width ? this.name :
-            this.name.slice(0, Math.floor(this.name.length*(allowed_width - c_width)/text_bb.width)) + chr;
+        let text_bb = ctx.measureText(this.name), display_name = this.name;
+        if (this.selected) {
+            ctx.fillStyle = "#f99";
+            ctx.fillRect(this.x - text_bb.width/2 - 3, this.y - 15, text_bb.width + 6, 15+5);
+            ctx.fillStyle = "#001";
+        } else {
+            let chr = '-', c_width = ctx.measureText(chr).width, allowed_width = .75*this.width;
+            if (text_bb.width >= allowed_width)
+                display_name = this.name.slice(0, Math.floor(this.name.length*(allowed_width - c_width)/text_bb.width)) + chr;
+            ctx.fillStyle = "#bbb";
+        }
         ctx.fillText(display_name, this.x, this.y);
     }
 }
