@@ -62,21 +62,30 @@ class HDict(UserDict):
                              "following nodes have this data:\n" + '\n'.join(map(str, results)))
         return results[0]
 
-    def all_children(self, source_id, *via_ids, returns='both'):
+    def connected(self, item_id, *via_ids, returns='both', direction='outgoing'):
         """
-        Yields all children ids of a parent item if they're connected via all via_ids.
-        The source_id can be either the id of a node or an edge.
+        Yields all connected ids of an item if they're connected via all via_ids.
+        If direction is 'outgoing' or 'incoming', yields all destinations/children or sources/parent respectively.
+        When direction is 'both', returns all items connected to given item.
+        The item_id can be either the id of a node or an edge.
         The returned items can be filtered to to contain 'nodes', 'edges', or 'both'.
         """
+        if direction == 'both':
+            yield from self.connected(item_id, *via_ids, returns=returns, direction='incoming')
+            yield from self.connected(item_id, *via_ids, returns=returns, direction='outgoing')
+            return
+
+        from_label, to_label = ('src', 'dst') if direction == 'outgoing' else ('dst', 'src')
+
         for edge in self['conn']:
-            if edge['src'] != source_id:
+            if edge[from_label] != item_id:
                 continue
-            is_node = isinstance(edge['dst'], int)
+            is_node = isinstance(edge[to_label], int)
             if (returns == 'edges' and is_node) or (returns == 'nodes' and not is_node):
                 continue
-            if all(any(conn == edge for conn in self.all_children(via_id))
+            if all(any(conn == edge for conn in self.connected(via_id, direction=direction))
                    for via_id in via_ids):
-                yield edge['dst']
+                yield edge[to_label]
 
     @classmethod
     def load_from_path(cls, path, mode='T'):
