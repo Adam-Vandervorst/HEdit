@@ -592,7 +592,7 @@ class Board {
             case "i": toggle_show(information); break;
             case "m": this.h.tighten(); break;
             case "M": this.h.loosen(); break;
-            case "r": this.resetCanvas(); break;
+            case "r": this.resetCanvas(); this.keypressHandler({key: " "}); break;
             case "u": this.h.undo(); break;
             case "U": this.h.redo(); break;
             case "+": this.h.scale(.2); break;
