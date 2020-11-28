@@ -200,6 +200,13 @@ class Node {
         }
         ctx.fillText(display_name, this.x, this.y);
     }
+
+    serialize() {
+        let base = {id: this.id, data: this.name},
+            position = {x: Math.round(this.x), y: Math.round(this.y)};
+        if (this.color == default_node_color) return {...base, ...position};
+        else return {...base, color: n.color.substr(1), ...position};
+    }
 }
 
 class Edge {
@@ -289,6 +296,10 @@ class Edge {
         return rgbToHex(this.colors.reduce((ct, c) =>
                 [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o]
         ))
+    }
+
+    serialize() {
+        return this.id;
     }
 }
 
@@ -475,10 +486,8 @@ class H {
         return JSON.stringify({
             name: this.name,
             mode: this.modeStr,
-            data: this.nodes.map(n => (n.color == default_node_color ?
-                {id: n.id, data: n.name, x: n.x, y: n.y} :
-                {id: n.id, data: n.name, color: n.color.substr(1), x: n.x, y: n.y})),
-            conn: this.edges.map(e => e.id)
+            data: this.nodes.map(n => n.serialize()),
+            conn: this.edges.map(e => e.serialize())
         });
     }
 
