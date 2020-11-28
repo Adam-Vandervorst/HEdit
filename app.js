@@ -459,15 +459,15 @@ class H {
         this.history.push(step);
     }
 
-    select(i) {
-        let step = i.selected ? {
-            do: () => {remove(this.selected, i); i.selected = false},
-            undo: () => {this.selected.push(i); i.selected = true},
-            str: `Deselect ${show(i)}`
+    select(n) {
+        let step = n.selected ? {
+            do: () => {remove(this.selected, n); n.selected = false},
+            undo: () => {this.selected.push(n); n.selected = true},
+            str: `Deselect ${show(n)}`
         } : {
-            do: () => {this.selected.push(i); i.selected = true},
-            undo: () => {remove(this.selected, i); i.selected = false},
-            str: `Select ${show(i)}`
+            do: () => {this.selected.push(n); n.selected = true},
+            undo: () => {remove(this.selected, n); n.selected = false},
+            str: `Select ${show(n)}`
         }
         step.do();
         this.history.push(step);
@@ -713,10 +713,9 @@ window.addEventListener('load', () => {
             .then(data => start_h.deserialize(data))
             .finally(() => board = new Board(start_h));
         else board = new Board(start_h);
-        if (param = params.get('selected')) start_h.selected = JSON.parse(param)
-            .map(i => start_h.nodes.find(n => n.id == i))
-            .filter(x => x)
-            .map(n => (n.selected = true) && n);
+        if (param = params.get('selected')) JSON.parse(param)
+            .map(i => start_h.nodes.find(n => n.id == i) || start_h.edges.find(e => edgeEq(e.id, i)))
+            .filter(x => x).forEach(n => start_h.select(n)) || board.draw();
         if (params.has('hide_help')) board.keypressHandler({key: "h"});
         if (params.has('show_history')) board.keypressHandler({key: "H"});
         if (params.has('show_information')) board.keypressHandler({key: "i"});
