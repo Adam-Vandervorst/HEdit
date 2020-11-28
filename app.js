@@ -662,14 +662,14 @@ class Board {
     }
 
     visible_edges() {
-        let es = (!this.only_selected) ? this.h.edges : this.h.edges.filter(e =>
+        let es = (!this.only_selected || !this.h.selected.length) ? this.h.edges : this.h.edges.filter(e =>
             this.h.selected.some(item => edgeContains(e.id, item.id) || edgeContains(item.id, e.id))
         );
         return this.show_grey ? es : es.filter(e => e.colors.length)
     }
 
     visible_nodes(visible_edges) {
-        let ns = (!this.only_selected) ? this.h.nodes : this.h.nodes.filter(n =>
+        let ns = (!this.only_selected || !this.h.selected.length) ? this.h.nodes : this.h.nodes.filter(n =>
             this.h.selected.some(item => edgeContains(item.id, n.id)) ||
             visible_edges.some(e => e.dst.id === n.id)
         )
