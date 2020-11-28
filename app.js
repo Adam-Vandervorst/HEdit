@@ -304,14 +304,15 @@ class Edge {
 }
 
 class H {
-    constructor(name) {
+    constructor(name, mode) {
         this.deserialize = this.deserialize.bind(this);
         this.name = name || "New";
         this.dx = 0; this.dy = 0;
         this.node_count = 0;
         this.nodes = []; this.edges = [];
         this.buffer = []; this.history = []; this.selected = [];
-        this.mode = 1; this.modes = ['H', 'T', 'property_graph', 'edge_colored_graph', 'graph']
+        this.modes = ['H', 'T', 'property_graph', 'edge_colored_graph', 'graph']
+        this.mode = mode == null || !this.modes.includes(mode) ? 1 : this.modes.indexOf(mode);
     }
 
     restore(c) {this.focus(this.dx, this.dy, c)}
@@ -703,8 +704,8 @@ window.addEventListener('resize', () => {
 window.addEventListener('load', () => {
     /* hack to prevent firing the init script before the window object's values are populated */
     setTimeout(() => {
-        let start_h = new H(), param = null;
         const params = new URLSearchParams(window.location.search);
+        let param = null, start_h = new H(params.get('name'), params.get('mode'));
         if (params.has('random_color')) random_color = true;
         if (param = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(param)));
         if (param = params.get('uri')) fetch(param, {credentials: 'include'})
@@ -712,5 +713,15 @@ window.addEventListener('load', () => {
             .then(data => start_h.deserialize(data))
             .finally(() => board = new Board(start_h));
         else board = new Board(start_h);
+        if (param = params.get('selected')) start_h.selected = JSON.parse(param)
+            .map(i => start_h.nodes.find(n => n.id == i))
+            .filter(x => x)
+            .map(n => (n.selected = true) && n);
+        if (params.has('hide_help')) board.keypressHandler({key: "h"});
+        if (params.has('show_history')) board.keypressHandler({key: "H"});
+        if (params.has('show_information')) board.keypressHandler({key: "i"});
+        if (params.has('hide_gray')) board.keypressHandler({key: "g"});
+        if (params.has('hide_disconnected')) board.keypressHandler({key: "d"});
+        if (params.has('only_selected')) board.keypressHandler({key: "t"});
     }, 100);
 }, false);
