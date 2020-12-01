@@ -711,7 +711,7 @@ class Board {
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
         ns.sort((x, y) => x.id - y.id);
-        es.sort((x, y) => (edgeContains(y.id, x.id) - edgeContains(x.id, y.id)) || (x.colors.length - y.colors.length));
+        es.sort((x, y) => edgeContains(x.id, y.id) - edgeContains(y.id, x.id)).reverse();
         return [ns, es]
     }
 
