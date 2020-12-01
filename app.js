@@ -539,7 +539,7 @@ class Board {
         this.resetCanvas();
 
         this.hs = [start_h]; this.h = this.hs[0];
-        this.show_grey = true; this.show_disconnected = true;
+        this.show_gray = true; this.show_disconnected = true;
         this.only_outgoing = false; this.only_incoming = false;
         this.touch = null;
 
@@ -604,7 +604,7 @@ class Board {
             case "c": this.only_outgoing = !this.only_outgoing; break;
             case "C": this.only_incoming = !this.only_incoming; break;
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
-            case "g": this.show_grey = !this.show_grey; break;
+            case "g": this.show_gray = !this.show_gray; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
             case "h": toggle_show(commands); break;
             case "H": toggle_show(history); break;
@@ -704,11 +704,11 @@ class Board {
             es = this.h.edges.slice();
         }
 
-        if (!this.show_grey)
-            es = es.filter(e => e.colors.length);
+        if (!this.show_gray)
+            es = es.filter(e => e.colors.length || this.h.selected.includes(e));
 
         if (!this.show_disconnected)
-            ns = ns.filter(n => es.find(e => n === e.src || n === e.dst));
+            ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
         ns.sort((x, y) => x.id - y.id);
         es.sort((x, y) => (edgeContains(y.id, x.id) - edgeContains(x.id, y.id)) || (x.colors.length - y.colors.length));
