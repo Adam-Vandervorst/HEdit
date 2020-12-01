@@ -539,7 +539,8 @@ class Board {
         this.resetCanvas();
 
         this.hs = [start_h]; this.h = this.hs[0];
-        this.show_help = true; this.show_grey = true; this.show_disconnected = true; this.only_selected = false;
+        this.show_grey = true; this.show_disconnected = true;
+        this.only_outgoing = false; this.only_incoming = false;
         this.touch = null;
 
         window.addEventListener("keydown", this.keypressHandler);
@@ -600,13 +601,14 @@ class Board {
             case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.update_open() && this.draw()); break;
             case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
             case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
+            case "c": this.only_outgoing = !this.only_outgoing; break;
+            case "C": this.only_incoming = !this.only_incoming; break;
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
             case "g": this.show_grey = !this.show_grey; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
-            case "t": this.only_selected = !this.only_selected; break;
             case "h": toggle_show(commands); break;
-            case "H": this.update_history(); toggle_show(history); break;
-            case "i": this.update_information(); toggle_show(information); break;
+            case "H": toggle_show(history); break;
+            case "i": toggle_show(information); break;
             case "m": this.h.tighten(); break;
             case "M": this.h.loosen(); break;
             case "r": this.resetCanvas(); this.keypressHandler({key: " "}); break;
@@ -650,10 +652,16 @@ class Board {
     }
 
     update_information() {
-        [this.h.name, this.h.modeStr, this.h.selected.map(show).join(', '), this.h.nodes.length, this.h.edges.length, this.h.edges.filter(e => e.colors.length).length]
-            .forEach((v, i) => {
-                information.rows[i + 1].cells[1].innerHTML = v
-        })
+        [
+            this.h.name,
+            this.h.modeStr,
+            this.only_incoming && this.only_outgoing ? "both" : !this.only_incoming && !this.only_outgoing ? "all" :
+                this.only_incoming ? "incoming" : "outgoing",
+            this.h.selected.map(show).join(', '),
+            this.h.nodes.length,
+            this.h.edges.length,
+            this.h.edges.filter(e => e.colors.length).length
+        ].forEach((v, i) => information.rows[i + 1].cells[1].innerHTML = v)
     }
 
     update_history() {
@@ -668,12 +676,13 @@ class Board {
         open.innerHTML = ''
         this.hs.forEach((h, i) => {
             let open_h = document.createElement('li');
-            open_h.innerHTML = h.name; if (h === this.h) open_h.className = 'selected';
+            open_h.innerHTML = h.name;
+            if (h === this.h) open_h.className = 'selected';
             open.appendChild(open_h);
         })
     }
 
-    update_colors() {
+    propagate_colors() {
         this.h.edges.forEach(e => e.colors.length = 0);
         this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(hexToRgb(e.src.color)))
     }
@@ -681,8 +690,10 @@ class Board {
     visible() {
         let ns = [], es = [];
 
-        if (this.only_selected && this.h.selected.length) {
-            let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(e => edgeEq(e.src.id, item.id))]);
+        if (this.h.selected.length && (this.only_incoming || this.only_outgoing)) {
+            let match = (this.only_incoming && this.only_outgoing) ? (i => e => edgeEq(e.src.id, i.id) || edgeEq(e.dst.id, i.id)):
+                this.only_outgoing ? i => e => edgeEq(e.src.id, i.id) : i => e => edgeEq(e.dst.id, i.id);
+            let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(match(item))]);
             let shown = dedup_merge(expand(is => is.filter(i => i instanceof Edge).flatMap(e =>
                     [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
                                     item => JSON.stringify(item.id))
@@ -709,7 +720,10 @@ class Board {
         this.c.setTransform(1, 0, 0, 1, 0, 0);
         this.c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.c.restore();
-        this.update_colors();
+        this.propagate_colors();
+
+        if (!history.style.display) this.update_history();
+        if (!information.style.display) this.update_information();
 
         let [vns, ves] = this.visible();
         ves.forEach(e => e.draw(this.c));
