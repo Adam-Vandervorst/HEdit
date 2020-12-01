@@ -357,15 +357,15 @@ class H {
             to_be_deleted.forEach(i => this.edges.forEach(e => (e.dst === i || e.src === i) && to_be_deleted.add(e)));
         };
 
-        let step = {do: () => to_be_deleted.forEach(i => {remove(this.selected, i); "colors" in i ? remove(this.edges, i) : remove(this.nodes, i)}),
-                    undo: () => to_be_deleted.forEach(i => "colors" in i ? this.edges.push(i) : this.nodes.push(i)),
+        let step = {do: () => to_be_deleted.forEach(i => {remove(this.selected, i); i instanceof Edge ? remove(this.edges, i) : remove(this.nodes, i)}),
+                    undo: () => to_be_deleted.forEach(i => i instanceof Edge ? this.edges.push(i) : this.nodes.push(i)),
                     str: `Delete ${[...to_be_deleted].map(show).join(', ')}`}
         step.do();
         this.history.push(step);
     }
 
     rename_selected() {
-        let nodes_atm = this.selected.filter(i => !("colors" in i));
+        let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_names = nodes_atm.map(n => n.name);
         let new_names = nodes_atm.map(n => prompt("Rename " + n.name) || n.name)
         let step = {do: () => nodes_atm.forEach((n, i) => n.name = new_names[i]),
@@ -376,7 +376,7 @@ class H {
     }
 
     color_selected() {
-        let nodes_atm = this.selected.filter(i => !("colors" in i));
+        let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
         let new_color_str = prompt("Enter a CSS color for the selection");
         let new_color_rgb = colorToRgb(new_color_str);
@@ -390,7 +390,7 @@ class H {
     }
 
     recolor_selected() {
-        let nodes_atm = this.selected.filter(i => !("colors" in i));
+        let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
         let new_colors = nodes_atm.map(_ => rgbToHex(randomColor()))
         let step = {do: () => nodes_atm.forEach((n, i) => n.color = new_colors[i]),
@@ -401,7 +401,7 @@ class H {
     }
 
     move_selected() {
-        let nodes_atm = this.selected.filter(i => !("colors" in i)), nn = nodes_atm.length;
+        let nodes_atm = this.selected.filter(i => i instanceof Node), nn = nodes_atm.length;
         let [mx, my] = middle(...nodes_atm);
         return (new_point, node_edge) => {
             if (node_edge) return;
@@ -459,10 +459,10 @@ class H {
 
     can_connect(src, dst) {
         if (!src || !dst) return false;
-        if (this.mode > 0 && "colors" in src) return false; // in anything but an H, edges must start from nodes
-        if (this.mode >= 4 && "colors" in dst) return false; // in a graph edges must point to nodes
-        if (this.mode == 3 && "colors" in dst && dst.colors.length > 0) return false; // in an edge colored graph edges may only have one property
-        if (this.mode >= 2 && "colors" in dst && "colors" in dst.dst) return false; // in a property graph and an edge colored graph, if an edge points to another edge, that other edge must point to a vertex
+        if (this.mode > 0 && src instanceof Edge) return false; // in anything but an H, edges must start from nodes
+        if (this.mode >= 4 && dst instanceof Edge) return false; // in a graph edges must point to nodes
+        if (this.mode == 3 && dst instanceof Edge && dst.colors.length > 0) return false; // in an edge colored graph edges may only have one property
+        if (this.mode >= 2 && dst instanceof Edge && dst.dst instanceof Edge) return false; // in a property graph and an edge colored graph, if an edge points to another edge, that other edge must point to a vertex
         return true;
     }
 
@@ -675,7 +675,7 @@ class Board {
 
     update_colors() {
         this.h.edges.forEach(e => e.colors.length = 0);
-        this.h.edges.forEach(e => ("colors" in e.dst) && e.dst.colors.push(hexToRgb(e.src.color)))
+        this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(hexToRgb(e.src.color)))
     }
 
     visible() {
@@ -683,11 +683,11 @@ class Board {
 
         if (this.only_selected && this.h.selected.length) {
             let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(e => edgeEq(e.src.id, item.id))]);
-            let shown = dedup_merge(expand(is => is.filter(i => "colors" in i).flatMap(e =>
+            let shown = dedup_merge(expand(is => is.filter(i => i instanceof Edge).flatMap(e =>
                     [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
                                     item => JSON.stringify(item.id))
-            ns = shown.filter(i => !("colors" in item));
-            es = shown.filter(i => "colors" in i);
+            ns = shown.filter(i => i instanceof Node);
+            es = shown.filter(i => i instanceof Edge);
         } else {
             ns = this.h.nodes.slice();
             es = this.h.edges.slice();
