@@ -686,17 +686,22 @@ class Board {
             let shown = dedup_merge(expand(is => is.filter(i => "colors" in i).flatMap(e =>
                     [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
                                     item => JSON.stringify(item.id))
-            shown.forEach(item => ("colors" in item) ? es.push(item) : ns.push(item))
+            ns = shown.filter(i => !("colors" in item));
+            es = shown.filter(i => "colors" in i);
         } else {
-            es = this.h.edges.slice();
             ns = this.h.nodes.slice();
+            es = this.h.edges.slice();
         }
 
-        return [
-            (this.show_disconnected ? ns : ns.filter(n => es.find(e => n === e.src || n === e.dst)))
-                .sort((x, y) => x.id - y.id),
-            (this.show_grey ? es : es.filter(e => e.colors.length))
-                .sort((x, y) => (edgeContains(y.id, x.id) - edgeContains(x.id, y.id)) || (x.colors.length - y.colors.length))]
+        if (!this.show_grey)
+            es = es.filter(e => e.colors.length);
+
+        if (!this.show_disconnected)
+            ns = ns.filter(n => es.find(e => n === e.src || n === e.dst));
+
+        ns.sort((x, y) => x.id - y.id);
+        es.sort((x, y) => (edgeContains(y.id, x.id) - edgeContains(x.id, y.id)) || (x.colors.length - y.colors.length));
+        return [ns, es]
     }
 
     draw() {
