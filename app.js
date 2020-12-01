@@ -153,6 +153,23 @@ function edgeContains(id, item) {
     return false;
 }
 
+function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isArray(x) ? x.length : x)) {
+    yield seed;
+    for (let last = seed, i = 0; i < max_iter && cond(last); i++)
+        yield (last = f(last));
+}
+
+function dedup_merge(lol, extract_feature=x => x) {
+    let s = new Set(), xs = [], feature = null;
+    for (let l of lol) for (let e of l) {
+        feature = extract_feature(e);
+        if (s.has(feature)) continue;
+        xs.push(e); s.add(feature);
+    }
+    return xs;
+}
+
+
 class Node {
     constructor(point, name, id, color) {
         this.width = 90; this.height = 50;
@@ -205,7 +222,7 @@ class Node {
         let base = {id: this.id, data: this.name},
             position = {x: Math.round(this.x), y: Math.round(this.y)};
         if (this.color == default_node_color) return {...base, ...position};
-        else return {...base, color: n.color.substr(1), ...position};
+        else return {...base, color: this.color.substr(1), ...position};
     }
 }
 
@@ -614,10 +631,10 @@ class Board {
     }
 
     handleInteraction() {
-        let es = this.visible_edges();
-        let on_edge = es.find(e => dist(e, this.touch) <= e.radius/2
+        let [vns, ves] = this.visible();
+        let on_edge = ves.find(e => dist(e, this.touch) <= e.radius/2
                                 || (e.is_interior(this.touch) && e.color === this.touch.hit_color));
-        let on_node = this.visible_nodes(es).find(n => n.is_interior(this.touch));
+        let on_node = vns.find(n => n.is_interior(this.touch));
 
         if (this.touch.static) {
             if (this.touch.alt && !on_node && !on_edge)
@@ -661,19 +678,25 @@ class Board {
         this.h.edges.forEach(e => ("colors" in e.dst) && e.dst.colors.push(hexToRgb(e.src.color)))
     }
 
-    visible_edges() {
-        let es = (!this.only_selected || !this.h.selected.length) ? this.h.edges : this.h.edges.filter(e =>
-            this.h.selected.some(item => edgeContains(e.id, item.id) || edgeContains(item.id, e.id))
-        );
-        return this.show_grey ? es : es.filter(e => e.colors.length)
-    }
+    visible() {
+        let ns = [], es = [];
 
-    visible_nodes(visible_edges) {
-        let ns = (!this.only_selected || !this.h.selected.length) ? this.h.nodes : this.h.nodes.filter(n =>
-            this.h.selected.some(item => edgeContains(item.id, n.id)) ||
-            visible_edges.some(e => e.dst.id === n.id)
-        )
-        return this.show_disconnected ? ns : ns.filter(n => visible_edges.find(e => n === e.src || n === e.dst))
+        if (this.only_selected) {
+            let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(e => edgeEq(e.src.id, item.id))]);
+            let shown = dedup_merge(expand(is => is.filter(i => "colors" in i).flatMap(e =>
+                    [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
+                                    item => JSON.stringify(item.id))
+            shown.forEach(item => ("colors" in item) ? es.push(item) : ns.push(item))
+        } else {
+            es = this.h.edges.slice();
+            ns = this.h.nodes.slice();
+        }
+
+        return [
+            (this.show_disconnected ? ns : ns.filter(n => es.find(e => n === e.src || n === e.dst)))
+                .sort((x, y) => x.id - y.id),
+            (this.show_grey ? es : es.filter(e => e.colors.length))
+                .sort((x, y) => (edgeContains(y.id, x.id) - edgeContains(x.id, y.id)) || (x.colors.length - y.colors.length))]
     }
 
     draw() {
@@ -685,9 +708,10 @@ class Board {
         this.update_history();
         this.update_open();
         this.update_colors();
-        let es = this.visible_edges();
-        es.slice().reverse().forEach(e => e.draw(this.c));
-        this.visible_nodes(es).slice().reverse().forEach(n => n.draw(this.c));
+
+        let [vns, ves] = this.visible();
+        ves.forEach(e => e.draw(this.c));
+        vns.forEach(n => n.draw(this.c));
     }
 }
 
