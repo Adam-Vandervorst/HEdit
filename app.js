@@ -761,6 +761,7 @@ window.addEventListener('load', () => {
         if (params.has('show_information')) board.keypressHandler({key: "i"});
         if (params.has('hide_gray')) board.keypressHandler({key: "g"});
         if (params.has('hide_disconnected')) board.keypressHandler({key: "d"});
-        if (params.has('only_selected')) board.keypressHandler({key: "t"});
+        if (params.has('only_outgoing')) board.keypressHandler({key: "c"});
+        if (params.has('only_incoming')) board.keypressHandler({key: "C"});
     }, 100);
 }, false);
