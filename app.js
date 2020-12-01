@@ -681,7 +681,7 @@ class Board {
     visible() {
         let ns = [], es = [];
 
-        if (this.only_selected) {
+        if (this.only_selected && this.h.selected.length) {
             let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(e => edgeEq(e.src.id, item.id))]);
             let shown = dedup_merge(expand(is => is.filter(i => "colors" in i).flatMap(e =>
                     [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
