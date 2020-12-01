@@ -597,16 +597,16 @@ class Board {
             case "6": this.partial = this.h.tag_selected(); break;
             case "7": this.h.color_selected(); break;
             case "s": download(genFileName(this.h), this.h.serialize()); break;
-            case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.draw()); break;
+            case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.update_open() && this.draw()); break;
             case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
             case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
-            case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; break;
+            case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
             case "g": this.show_grey = !this.show_grey; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
             case "t": this.only_selected = !this.only_selected; break;
             case "h": toggle_show(commands); break;
-            case "H": toggle_show(history); break;
-            case "i": toggle_show(information); break;
+            case "H": this.update_history(); toggle_show(history); break;
+            case "i": this.update_information(); toggle_show(information); break;
             case "m": this.h.tighten(); break;
             case "M": this.h.loosen(); break;
             case "r": this.resetCanvas(); this.keypressHandler({key: " "}); break;
@@ -614,19 +614,19 @@ class Board {
             case "U": this.h.redo(); break;
             case "+": this.h.scale(.2); break;
             case "-": this.h.scale(-.2); break;
-            case "ArrowUp": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) - 1, this.hs.length)]; this.h.restore(this.c)}
+            case "ArrowUp": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) - 1, this.hs.length)]; this.h.restore(this.c); this.update_open();}
                             else this.h.move(0, -1, this.c); break;
-            case "ArrowDown": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) + 1, this.hs.length)]; this.h.restore(this.c)}
+            case "ArrowDown": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) + 1, this.hs.length)]; this.h.restore(this.c); this.update_open();}
                             else this.h.move(0, 1, this.c); break;
-            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}}
+            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}; this.update_open();}
                             else this.h.move(-1, 0, this.c); break;
-            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h)}
+            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open();}
                             else this.h.move(1, 0, this.c); break;
             case " ": let [mx, my] = middle(...this.h.nodes); this.h.focus(this.canvas.width/2 - mx, this.canvas.height/2 - my, this.c); break;
             case "Escape": {this.partial = null; this.h.deselect();} break;
             default: return;
         }
-        this.draw();
+        window.requestAnimationFrame(this.draw);
         if (e.stopPropagation) {e.stopPropagation(); e.preventDefault();}
     }
 
@@ -704,9 +704,6 @@ class Board {
         this.c.setTransform(1, 0, 0, 1, 0, 0);
         this.c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.c.restore();
-        this.update_information();
-        this.update_history();
-        this.update_open();
         this.update_colors();
 
         let [vns, ves] = this.visible();
