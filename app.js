@@ -748,20 +748,23 @@ window.addEventListener('load', () => {
         let param = null, start_h = new H(params.get('name'), params.get('mode'));
         if (params.has('random_color')) random_color = true;
         if (param = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(param)));
-        if (param = params.get('uri')) fetch(param, {credentials: 'include'})
-            .then(response => response.json())
-            .then(data => start_h.deserialize(data))
-            .finally(() => board = new Board(start_h));
-        else board = new Board(start_h);
-        if (param = params.get('selected')) JSON.parse(param)
-            .map(i => start_h.nodes.find(n => n.id == i) || start_h.edges.find(e => edgeEq(e.id, i)))
-            .filter(x => x).forEach(n => start_h.select(n)) || board.draw();
-        if (params.has('hide_help')) board.keypressHandler({key: "h"});
-        if (params.has('show_history')) board.keypressHandler({key: "H"});
-        if (params.has('show_information')) board.keypressHandler({key: "i"});
-        if (params.has('hide_gray')) board.keypressHandler({key: "g"});
-        if (params.has('hide_disconnected')) board.keypressHandler({key: "d"});
-        if (params.has('only_outgoing')) board.keypressHandler({key: "c"});
-        if (params.has('only_incoming')) board.keypressHandler({key: "C"});
+        new Promise((resolve, reject) => {
+            if (param = params.get('uri')) fetch(param, {credentials: 'include'})
+                .then(response => response.json())
+                .then(data => start_h.deserialize(data))
+                .finally(() => resolve(board = new Board(start_h)));
+            else resolve(board = new Board(start_h));
+        }).then(ins => {
+            if (param = params.get('selected')) JSON.parse(param)
+                .map(i => start_h.nodes.find(n => n.id == i) || start_h.edges.find(e => edgeEq(e.id, i)))
+                .filter(x => x).forEach(n => start_h.select(n)) || ins.draw();
+            if (params.has('hide_help')) ins.keypressHandler({key: "h"});
+            if (params.has('show_history')) ins.keypressHandler({key: "H"});
+            if (params.has('show_information')) ins.keypressHandler({key: "i"});
+            if (params.has('hide_gray')) ins.keypressHandler({key: "g"});
+            if (params.has('hide_disconnected')) ins.keypressHandler({key: "d"});
+            if (params.has('only_outgoing')) ins.keypressHandler({key: "c"});
+            if (params.has('only_incoming')) ins.keypressHandler({key: "C"});
+        })
     }, 100);
 }, false);
