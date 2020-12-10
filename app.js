@@ -701,7 +701,7 @@ class Board {
             es = shown.filter(i => i instanceof Edge);
         } else {
             ns = this.h.nodes.slice();
-            es = this.h.edges.slice();
+            es = this.h.edges.slice().reverse();
         }
 
         if (!this.show_gray)
@@ -711,7 +711,7 @@ class Board {
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
         ns.sort((x, y) => x.id - y.id);
-        es.sort((x, y) => edgeContains(x.id, y.id) - edgeContains(y.id, x.id)).reverse();
+        es.sort((x, y) => edgeContains(y.id, x.id) - edgeContains(x.id, y.id));
         return [ns, es]
     }
 
