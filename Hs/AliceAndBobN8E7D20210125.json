@@ -1,0 +1,68 @@
+{
+    "name": "AliceAndBob",
+    "mode": "T",
+    "data": [
+        {
+            "id": 0,
+            "data": "Alice",
+            "x": 773,
+            "y": 509
+        },
+        {
+            "id": 1,
+            "data": "Bob",
+            "x": 1214,
+            "y": 522
+        },
+        {
+            "id": 2,
+            "data": "Likes",
+            "color": "609875",
+            "x": 1099,
+            "y": 366
+        },
+        {
+            "id": 3,
+            "data": "For this example",
+            "color": "b2566e",
+            "x": 842,
+            "y": 379
+        },
+        {
+            "id": 4,
+            "data": "Just here",
+            "color": "a29484",
+            "x": 993,
+            "y": 321
+        },
+        {
+            "id": 5,
+            "data": "Hates",
+            "color": "962b7d",
+            "x": 977,
+            "y": 704
+        },
+        {
+            "id": 6,
+            "data": "really",
+            "color": "e62c5b",
+            "x": 833,
+            "y": 625
+        },
+        {
+            "id": 7,
+            "data": "in general",
+            "color": "3eb520",
+            "x": 1136,
+            "y": 626
+        }
+    ],
+    "conn": [
+        {"src":0,"dst":1},
+        {"src":2,"dst":{"src":0,"dst":1}},
+        {"src":3,"dst":{"src":2,"dst":{"src":0,"dst":1}}},
+        {"src":4,"dst":{"src":3,"dst":{"src":2,"dst":{"src":0,"dst":1}}}},
+        {"src":5,"dst":{"src":0,"dst":1}},{"src":6,"dst":{"src":5,"dst":{"src":0,"dst":1}}},
+        {"src":7,"dst":{"src":5,"dst":{"src":0,"dst":1}}}
+    ]
+}
