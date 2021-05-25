@@ -37,13 +37,13 @@ class HDict(UserDict):
             else:
                 raise KeyError(f"No node with id {node_id} found.")
 
-    def find_nodes(self, data, fits=lambda provided, other: provided == other):
+    def find_nodes(self, prop, fits=lambda prop, node: prop == node['data']):
         """
         Yields all nodes matching data with some definition of matching 'fits'.
-        By default this is equality.
+        By default this is equality to the nodes' data.
         """
         for node in self['data']:
-            if fits(data, node['data']):
+            if fits(prop, node):
                 yield node
 
     def get_node_id(self, data, allowed=None, disallowed=()):
@@ -83,9 +83,51 @@ class HDict(UserDict):
             is_node = isinstance(edge[to_label], int)
             if (returns == 'edges' and is_node) or (returns == 'nodes' and not is_node):
                 continue
-            if all(any(conn == edge for conn in self.connected(via_id, direction=direction))
+            if all(any(conn == edge for conn in self.connected(via_id, direction='outgoing'))
                    for via_id in via_ids):
                 yield edge[to_label]
+
+    def as_objects(self):
+        """
+        If the structure admits to some constraints, yields objects with implied properties.
+        Specifically, every node needs to either:
+        1. only connect to other nodes with exactly 1 tag and is either a source or a sink node
+        2. only connect to regular edges and have no incoming connections
+        3. be connected to the same number of 1. nodes as the other nodes in 3 (not enforced)
+
+        Produces dictionaries with 3. nodes with the following structure:
+        {data: str, 2. node data: 1. node data, ..., 2. node data: [3. node data, ...], ...}
+        """
+        if 'mode' in self and self['mode'] != 'property_graph':
+            raise ValueError("Object list creation only possible with property-graphs.")
+
+        match_zero = lambda way, node: all(False for _ in self.connected(node['id'], **way))
+        id_set = lambda it: {n['id'] for n in it}
+
+        no_incoming = id_set(self.find_nodes({'direction': 'incoming'}, match_zero))
+        no_outgoing = id_set(self.find_nodes({'direction': 'outgoing'}, match_zero))
+        only_to_nodes = id_set(self.find_nodes({'returns': 'edges', 'direction': 'outgoing'}, match_zero))
+        only_to_edges = id_set(self.find_nodes({'returns': 'nodes', 'direction': 'outgoing'}, match_zero))
+
+        type_1 = (no_incoming | no_outgoing) & only_to_nodes
+        type_2 = no_incoming & only_to_edges
+        type_3 = id_set(self['data']) - type_1 - type_2
+
+        assert type_1 | type_2 | type_3 == id_set(self['data'])
+        assert type_1 & type_2 & type_3 == set()
+
+        for i, d in self.get_info(type_3, 'id', 'data'):
+            dct = {'id': i, 'data': d}
+
+            for pi in type_2:
+                p, = self.get_info(pi, 'data')
+                viable_label = set(self.connected(i, pi, direction='incoming')) & no_incoming
+                for v in self.get_info(viable_label, 'data'):
+                    dct[p] = v
+                    break
+                else:
+                    dct[p] = list(self.get_info(self.connected(i, pi, direction='outgoing'), 'data'))
+            yield dct
 
     @classmethod
     def load_from_path(cls, path, mode='T'):
@@ -105,6 +147,6 @@ class HDict(UserDict):
         if not ('data' in dct and 'conn' in dct):
             raise ValueError("HEdit json at least contains 'data' and 'conn' fields.")
 
-        if 'mode' in dct and not modes.index(mode) >= modes.index(dct['mode']):
+        if 'mode' in dct and not modes.index(mode) <= modes.index(dct['mode']):
             print(f"Required mode {mode!r} is stricter than found mode {dct['mode']!r}.")
         return cls(dct)

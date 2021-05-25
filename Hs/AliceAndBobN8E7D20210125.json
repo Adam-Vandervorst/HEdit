@@ -62,7 +62,8 @@
         {"src":2,"dst":{"src":0,"dst":1}},
         {"src":3,"dst":{"src":2,"dst":{"src":0,"dst":1}}},
         {"src":4,"dst":{"src":3,"dst":{"src":2,"dst":{"src":0,"dst":1}}}},
-        {"src":5,"dst":{"src":0,"dst":1}},{"src":6,"dst":{"src":5,"dst":{"src":0,"dst":1}}},
+        {"src":5,"dst":{"src":0,"dst":1}},
+        {"src":6,"dst":{"src":5,"dst":{"src":0,"dst":1}}},
         {"src":7,"dst":{"src":5,"dst":{"src":0,"dst":1}}}
     ]
 }
