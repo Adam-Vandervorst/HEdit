@@ -87,14 +87,23 @@ class HDict(UserDict):
                    for via_id in via_ids):
                 yield edge[to_label]
 
-    def as_adjacency(self):
+    def as_adjacency(self, omit_empty=True, direction='outgoing'):
         """
-        Returns a plain adjacency dict for plain graphs.
+        Returns a generalized adjacency dict with tuple-id's for edges.
         """
-        if 'mode' in self and self['mode'] != 'graph':
-            raise ValueError("This is a plain adjacency structure and only works on regular graphs.")
+        def to_tuple(dict_id):
+            if isinstance(dict_id, dict):
+                return to_tuple(dict_id['src']), to_tuple(dict_id['dst'])
+            return dict_id
 
-        return {n['id']: list(self.connected(n['id'], direction='outgoing')) for n in self['data']}
+        adjacency = {}
+        node_ids, edge_ids = [n['id'] for n in self['data']], self['conn']
+        for i in node_ids + edge_ids:
+            nbs = list(map(to_tuple, self.connected(i, direction=direction)))
+            if omit_empty and not nbs:
+                continue
+            adjacency[to_tuple(i)] = nbs
+        return adjacency
 
     def split_node_types(self):
         """
