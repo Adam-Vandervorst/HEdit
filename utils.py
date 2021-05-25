@@ -87,16 +87,14 @@ class HDict(UserDict):
                    for via_id in via_ids):
                 yield edge[to_label]
 
-    def as_objects(self):
+    def split_node_types(self):
         """
-        If the structure admits to some constraints, yields objects with implied properties.
-        Specifically, every node needs to either:
+        For some property graphs - where every edge is tagged with a (possibly empty) set of nodes - a nice interpretation exists.
+        Namely nodes can have categories, labels, and certain kinds of neighbors.
+        This function returns three useful node types for this interpretation if every nodes falls into one of these cases:
         1. only connect to other nodes with exactly 1 tag and is either a source or a sink node
         2. only connect to regular edges and have no incoming connections
         3. be connected to the same number of 1. nodes as the other nodes in 3 (not enforced)
-
-        Produces dictionaries with 3. nodes with the following structure:
-        {data: str, 2. node data: 1. node data, ..., 2. node data: [3. node data, ...], ...}
         """
         if 'mode' in self and self['mode'] != 'property_graph':
             raise ValueError("Object list creation only possible with property-graphs.")
@@ -114,20 +112,37 @@ class HDict(UserDict):
         type_3 = id_set(self['data']) - type_1 - type_2
 
         assert type_1 | type_2 | type_3 == id_set(self['data'])
-        assert type_1 & type_2 & type_3 == set()
+        assert type_1 & type_2 == type_2 & type_3 == type_3 & type_1 == set()
 
-        for i, d in self.get_info(type_3, 'id', 'data'):
-            dct = {'id': i, 'data': d}
+        return type_1, type_2, type_3
+
+    def as_object_adjacency(self, type_1, type_2, type_3):
+        """
+        Uses the types from `split_node_types` to return an adjacency structure with the implied objects.
+        Specifically this function produces a id-object of where each object is a type 3 node with the following structure:
+        {
+            **type_3 node,
+            type_2 node data: type_1 node data, ...,
+            type_2 node data: [type_3 node id, ...], ...,
+            type_2 node data: [type_1 node data, ...], ...,
+        }
+        """
+        adjacency = {}
+
+        for dct in self.get_info(type_3):
+            i = dct['id']
 
             for pi in type_2:
                 p, = self.get_info(pi, 'data')
-                viable_label = set(self.connected(i, pi, direction='incoming')) & no_incoming
-                for v in self.get_info(viable_label, 'data'):
+                maybe_vi = set(self.connected(i, pi, direction='incoming')) & type_1
+                for v in self.get_info(maybe_vi, 'data'):
                     dct[p] = v
                     break
                 else:
-                    dct[p] = list(self.get_info(self.connected(i, pi, direction='outgoing'), 'data'))
-            yield dct
+                    vs = set(self.connected(i, pi, direction='outgoing'))
+                    dct[p] = list(vs if vs <= type_3 else self.get_info(vs & type_1, 'data'))
+            adjacency[i] = dct
+        return adjacency
 
     @classmethod
     def load_from_path(cls, path, mode='T'):
