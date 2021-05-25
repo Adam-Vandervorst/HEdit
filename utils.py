@@ -87,9 +87,18 @@ class HDict(UserDict):
                    for via_id in via_ids):
                 yield edge[to_label]
 
+    def as_adjacency(self):
+        """
+        Returns a plain adjacency dict for plain graphs.
+        """
+        if 'mode' in self and self['mode'] != 'graph':
+            raise ValueError("This is a plain adjacency structure and only works on regular graphs.")
+
+        return {n['id']: list(self.connected(n['id'], direction='outgoing')) for n in self['data']}
+
     def split_node_types(self):
         """
-        For some property graphs - where every edge is tagged with a (possibly empty) set of nodes - a nice interpretation exists.
+        For some property graphs - a digraph where every edge is tagged with a set of nodes - a nice interpretation exists.
         Namely nodes can have categories, labels, and certain kinds of neighbors.
         This function returns three useful node types for this interpretation if every nodes falls into one of these cases:
         1. only connect to other nodes with exactly 1 tag and is either a source or a sink node
@@ -97,7 +106,7 @@ class HDict(UserDict):
         3. be connected to the same number of 1. nodes as the other nodes in 3 (not enforced)
         """
         if 'mode' in self and self['mode'] != 'property_graph':
-            raise ValueError("Object list creation only possible with property-graphs.")
+            raise ValueError("Node types are a feature of property-graphs only.")
 
         match_zero = lambda way, node: all(False for _ in self.connected(node['id'], **way))
         id_set = lambda it: {n['id'] for n in it}
