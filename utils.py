@@ -16,8 +16,9 @@ class HDict(UserDict):
 
     def get_info(self, node_ids, *fields):
         """
-        Takes a node id and yield specified fields in the order they are provided.
-        If no fields are specified, the node is returned.
+        Takes node ids and yields specified fields in (ordered) tuples.
+        If no fields are specified, the node dict (reference) is provided instead.
+        If only a single field, just the content of that field is provided.
 
         Raises KeyError if a node id is not present.
         """
@@ -147,7 +148,7 @@ class HDict(UserDict):
         """
         adjacency = {}
 
-        for dct in self.get_info(type_3):
+        for dct in map(dict.copy, self.get_info(type_3)):
             i = dct['id']
 
             for pi in type_2:
