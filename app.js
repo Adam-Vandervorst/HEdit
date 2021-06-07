@@ -202,8 +202,9 @@ class Node {
             ctx.stroke();
         }
 
-        ctx.font = "15px Arial";
+        ctx.font = "15px sans-serif";
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         let text_bb = ctx.measureText(this.name), display_name = this.name;
         if (this.selected) {
             ctx.fillStyle = "#f99";
