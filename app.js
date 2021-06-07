@@ -172,7 +172,7 @@ function dedup_merge(lol, extract_feature=x => x) {
 
 class Node {
     constructor(point, name, id, color) {
-        this.width = 90; this.height = 50;
+        this.width = 90; this.height = 45;
         this.x = point.x; this.y = point.y;
         this.name = name; this.id = id;
         this.color = color || (random_color ? colors[id % colors.length] : default_node_color);
@@ -184,16 +184,26 @@ class Node {
     }
 
     draw(ctx) {
+        const a = .7, b = .9;
         ctx.beginPath();
-        ctx.moveTo(this.x, this.y - this.height/2);
+        ctx.moveTo(this.x - this.width/2, this.y);
         ctx.bezierCurveTo(
-            this.x + this.width/2, this.y - this.height/2,
-            this.x + this.width/2, this.y + this.height/2,
+            this.x - this.width/2, this.y + b*this.height/2,
+            this.x - a*this.width/2, this.y + this.height/2,
             this.x, this.y + this.height/2);
         ctx.bezierCurveTo(
-            this.x - this.width/2, this.y + this.height/2,
-            this.x - this.width/2, this.y - this.height/2,
+            this.x + a*this.width/2, this.y + this.height/2,
+            this.x + this.width/2, this.y + b*this.height/2,
+            this.x + this.width/2, this.y);
+        ctx.bezierCurveTo(
+            this.x + this.width/2, this.y - b*this.height/2,
+            this.x + a*this.width/2, this.y - this.height/2,
             this.x, this.y - this.height/2);
+        ctx.bezierCurveTo(
+            this.x - a*this.width/2, this.y - this.height/2,
+            this.x - this.width/2, this.y - b*this.height/2,
+            this.x - this.width/2, this.y);    
+        ctx.closePath();
         ctx.fillStyle = this.color;
         ctx.fill();
         if (this.selected) {
@@ -208,7 +218,7 @@ class Node {
         let text_bb = ctx.measureText(this.name), display_name = this.name;
         if (this.selected) {
             ctx.fillStyle = "#f99";
-            ctx.fillRect(this.x - text_bb.width/2 - 3, this.y - 15, text_bb.width + 6, 15+5);
+            ctx.fillRect(this.x - text_bb.width/2 - 3, this.y - 11, text_bb.width + 6, 15+5);
             ctx.fillStyle = "#001";
         } else {
             let chr = '-', c_width = ctx.measureText(chr).width, allowed_width = .75*this.width;
