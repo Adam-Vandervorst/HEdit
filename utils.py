@@ -15,9 +15,9 @@ class HDict(UserDict):
     Assumes the following structure:
     {
         data: [{data: str, id: int, ...}, ...],
-        conn: [{src: Id, dst: Id}, ...]
+        conn: [(Id, Id), ...]
     }
-    where Id is either integer or {src: Id, dst: Id}.
+    where Id is either integer or (Id, Id).
     """
 
     def get_info(self, node_ids, *fields):
@@ -82,34 +82,29 @@ class HDict(UserDict):
             yield from self.connected(item_id, *via_ids, returns=returns, direction='outgoing')
             return
 
-        from_label, to_label = ('src', 'dst') if direction == 'outgoing' else ('dst', 'src')
-
-        for edge in self['conn']:
-            if edge[from_label] != item_id:
+        for src, dst in self['conn']:
+            if direction == 'incoming':
+                src, dst = dst, src
+            if src != item_id:
                 continue
-            is_node = isinstance(edge[to_label], int)
-            if (returns == 'edges' and is_node) or (returns == 'nodes' and not is_node):
+            to_node = isinstance(dst, int)
+            if (returns == 'edges' and to_node) or (returns == 'nodes' and not to_node):
                 continue
-            if all(any(conn == edge for conn in self.connected(via_id, direction='outgoing'))
+            if all(any(s == src and d == dst for s, d in self.connected(via_id, direction='outgoing'))
                    for via_id in via_ids):
-                yield edge[to_label]
+                yield dst
 
     def as_adjacency(self, omit_empty=True, direction='outgoing'):
         """
         Returns a generalized adjacency dict with tuple-id's for edges.
         """
-        def to_tuple(dict_id):
-            if isinstance(dict_id, dict):
-                return to_tuple(dict_id['src']), to_tuple(dict_id['dst'])
-            return dict_id
-
         adjacency = {}
         node_ids, edge_ids = [n['id'] for n in self['data']], self['conn']
         for i in node_ids + edge_ids:
-            nbs = list(map(to_tuple, self.connected(i, direction=direction)))
+            nbs = list(self.connected(i, direction=direction))
             if omit_empty and not nbs:
                 continue
-            adjacency[to_tuple(i)] = nbs
+            adjacency[i] = nbs
         return adjacency
 
     def split_node_types(self):
@@ -187,6 +182,16 @@ class HDict(UserDict):
         if not ('data' in dct and 'conn' in dct):
             raise ValueError("HEdit json at least contains 'data' and 'conn' fields.")
 
+        if ('version' in dct and dct['version'] < 2) or ('version' not in dct and dct['conn'] and isinstance(dct['conn'][0], dict)):
+            raise ValueError(f"Please load {path} into H-Edit and save it again, it's outdated.")
+
         if 'mode' in dct and not modes.index(mode) <= modes.index(dct['mode']):
             print(f"Required mode {mode!r} is stricter than found mode {dct['mode']!r}.")
+
+        def to_tuple(list_id):
+            if isinstance(list_id, list):
+                return tuple(to_tuple(t) for t in list_id)
+            return list_id
+
+        dct['conn'] = list(map(to_tuple, dct['conn']))
         return cls(dct)
