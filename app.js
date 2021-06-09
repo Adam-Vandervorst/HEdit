@@ -92,7 +92,7 @@ function lightness(rgb) {
 }
 
 const _test_canvas = document.createElement('canvas'), _test_ctx = _test_canvas.getContext("2d");
-_test_canvas.width = 1; _test_canvas.height = 1;
+_test_canvas.width = 1; _test_canvas.height = 1; _test_ctx.font = "15px sans-serif";
 function colorToRgb(str) {
     // TODO add hsl black
     if (['black', 'rgb(0,0,0)', '#000', '#000000'].includes(str)) return [0, 0, 0];
@@ -172,7 +172,7 @@ function dedup_merge(lol, extract_feature=x => x) {
 
 class Node {
     constructor(point, name, id, color) {
-        this.width = 90; this.height = 45;
+        this.max_width = 90; this.height = 40;
         this.x = point.x; this.y = point.y;
         this.name = name; this.id = id;
         this.color = color || (random_color ? colors[id % colors.length] : default_node_color);
@@ -215,22 +215,36 @@ class Node {
         ctx.font = "15px sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        let text_bb = ctx.measureText(this.name), display_name = this.name;
         if (this.selected) {
             ctx.fillStyle = "#f99";
-            ctx.fillRect(this.x - text_bb.width/2 - 3, this.y - 11, text_bb.width + 6, 15+5);
+            ctx.fillRect(this.x - this.text_width/2 - 3, this.y - 11, this.text_width + 6, 15 + 5);
             ctx.fillStyle = "#001";
+            ctx.fillText(this.name, this.x, this.y);
         } else {
-            let chr = '-', c_width = ctx.measureText(chr).width, allowed_width = .75*this.width;
-            if (text_bb.width >= allowed_width)
-                display_name = this.name.slice(0, Math.floor(this.name.length*(allowed_width - c_width)/text_bb.width)) + chr;
             ctx.fillStyle = "#bbb";
+            ctx.fillText(this.display_name, this.x, this.y);
         }
-        ctx.fillText(display_name, this.x, this.y);
+    }
+
+    set name(v) {
+        let text_bb = _test_ctx.measureText(v);
+        let display_name = v;
+        this.data = v;
+        this.text_width = text_bb.width;
+        while (text_bb.width > this.max_width) {
+            display_name = display_name.slice(0, display_name.length - 2) + '-';
+            text_bb = _test_ctx.measureText(display_name);
+        }
+        this.display_name = display_name;
+        this.width = Math.max(text_bb.width + 10, this.height);
+    }
+
+    get name() {
+        return this.data;
     }
 
     serialize() {
-        let base = {id: this.id, data: this.name},
+        let base = {id: this.id, data: this.data},
             position = {x: Math.round(this.x), y: Math.round(this.y)};
         if (this.color == default_node_color) return {...base, ...position};
         else return {...base, color: this.color.substr(1), ...position};
