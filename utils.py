@@ -1,3 +1,9 @@
+"""
+This file provides utilities for handling structures made with H-EDit.
+Currently, only a quite bare-bones and low-performance class is available, HDict.
+After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
+In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
+"""
 import json
 from collections import UserDict
 
@@ -113,7 +119,7 @@ class HDict(UserDict):
         This function returns three useful node types for this interpretation if every nodes falls into one of these cases:
         1. only connect to other nodes with exactly 1 tag and is either a source or a sink node
         2. only connect to regular edges and have no incoming connections
-        3. be connected to the same number of 1. nodes as the other nodes in 3 (not enforced)
+        3. be connected to the same number of 1. nodes as the other nodes in 3. (not enforced)
         """
         if 'mode' in self and self['mode'] != 'property_graph':
             raise ValueError("Node types are a feature of property-graphs only.")
@@ -171,7 +177,7 @@ class HDict(UserDict):
         2. contains the necessary 'data' and 'conn' fields
         3. complies to the restrictions implied by mode
 
-        Raises ValueError for 2. and prints a warning for 3.
+        Raises file errors or JSONDecodeError for 1. ValueError for 2. and prints a warning for 3.
         """
         modes = ['H', 'T', 'property_graph', 'edge_colored_graph', 'graph']
 
