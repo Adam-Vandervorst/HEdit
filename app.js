@@ -143,14 +143,19 @@ function onSameSide(a,b, c,d) {
 }
 
 function edgeEq(id1, id2) {
-    if (isNaN(id1) && isNaN(id2)) return edgeEq(id1.src, id2.src) && edgeEq(id1.dst, id2.dst);
+    if (Array.isArray(id1) && Array.isArray(id2)) return edgeEq(id1[0], id2[0]) && edgeEq(id1[1], id2[1]);
     else return id1 === id2;
 }
 
 function edgeContains(id, item) {
     if (edgeEq(id, item)) return true;
-    if (isNaN(id)) return edgeContains(id.src, item) || edgeContains(id.dst, item);
+    if (Array.isArray(id)) return edgeContains(id[0], item) || edgeContains(id[1], item);
     return false;
+}
+
+function edgeConvert(eid) {
+    if (isNaN(eid)) return [edgeConvert(eid['src']), edgeConvert(eid['dst'])];
+    return eid;
 }
 
 function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isArray(x) ? x.length : x)) {
@@ -328,7 +333,7 @@ class Edge {
         })
     }
 
-    get id() {return {src: this.src.id, dst: this.dst.id}}
+    get id() {return [this.src.id, this.dst.id]}
     get x() {return (this.src.x + this.dst.x - (this.src === this.dst ? 3 : 1)*this.radius*Math.sin(this.θ))/2}
     get y() {return (this.src.y + this.dst.y + (this.src === this.dst ? 3 : 1)*this.radius*Math.cos(this.θ))/2}
     get θ() {return Math.atan2(this.src.y - this.dst.y, this.src.x - this.dst.x)}
@@ -529,24 +534,39 @@ class H {
         return JSON.stringify({
             name: this.name,
             mode: this.modeStr,
+            version: 2,
             data: this.nodes.map(n => n.serialize()),
             conn: this.edges.map(e => e.serialize())
         });
     }
 
+    deserializable(obj) {
+        if (!('conn' in obj && 'data' in obj))
+            throw Error("'conn' and 'data' are necessary for deserialization.");
+
+        if (obj.version|0 < 2)
+            obj.conn = obj.conn.map(edgeConvert);
+
+        obj.name = obj.name || "Unnamed";
+        obj.mode = this.modes.includes(obj.mode) ? obj.mode : this.modes[0];
+        return obj;
+    }
+
     deserialize(obj) {
-        this.name = obj.name;
-        this.mode = this.modes.indexOf(obj.mode);
-        this.nodes = obj.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
+        const ser = this.deserializable(obj);
+        this.name = ser.name;
+        this.mode = this.modes.indexOf(ser.mode);
+        this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
         this.edges = [];
-        while (this.edges.length !== obj.conn.length) {
-            obj.conn.forEach(d => {
-                let src = this.nodes.find(n => d.src === n.id) || this.edges.find(e => edgeEq(d.src, e.id));
-                let dst = this.nodes.find(n => d.dst === n.id) || this.edges.find(e => edgeEq(d.dst, e.id));
+        while (this.edges.length !== ser.conn.length) {
+            console.log(this.edges.length);
+            ser.conn.forEach(d => {
+                let src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
+                let dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
                 if (src && dst) this.edges.push(new Edge(src, dst));
             });
         }
-        this.node_count = Math.max(...obj.data.map(d => d.id)) + 1;
+        this.node_count = Math.max(...ser.data.map(d => d.id)) + 1;
         return this;
     }
 
