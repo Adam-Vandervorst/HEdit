@@ -97,6 +97,8 @@ class HDict(UserDict):
     def as_adjacency(self, omit_empty=True, direction='outgoing'):
         """
         Returns a generalized adjacency dict with tuple-id's for edges.
+        What should be considered adjacency can be controlled with 'direction'.
+        If 'omit_empty' is true, items with no adjacent items are not included.
         """
         adjacency = {}
         node_ids, edge_ids = [n['id'] for n in self['data']], self['conn']
@@ -106,6 +108,32 @@ class HDict(UserDict):
                 continue
             adjacency[i] = nbs
         return adjacency
+
+    def as_hypergraph(self, remove_subsumed=True):
+        """
+        Returns a list of directed hyper-edges.
+        For example, T-edge (0 -> (1 <-> 2)) gets converted to hyper-edges (0, 1, 2) and (0, 2, 1).
+        If 'remove_subsumed' is true, a T-edge is only converted if there is no T-edge pointing to it.
+        Alternatively, subsumed can be interpreted on hyper-edges as conforming to the following function:
+
+        def subsumed(enclosing, e):
+            start_i = len(enclosing) - len(e)
+            if start_i < 0:  # <= would be strictly subsumed
+                return False
+            return enclosing[start_i:] == e
+        """
+        if 'mode' in self and self['mode'] == 'H':
+            raise ValueError("H's can not be sensibly interpreted as hypergraphs.")
+
+        def tedge_to_hyperedge(e):
+            yield e[0]
+            if isinstance(e[1], tuple):
+                yield from tedge_to_hyperedge(e[1])
+            else:
+                yield e[1]
+
+        return [tuple(tedge_to_hyperedge(e)) for e in self['conn']
+                if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
     def split_node_types(self):
         """
@@ -119,7 +147,7 @@ class HDict(UserDict):
         if 'mode' in self and self['mode'] != 'property_graph':
             raise ValueError("Node types are a feature of property-graphs only.")
 
-        match_zero = lambda way, node: all(False for _ in self.connected(node['id'], **way))
+        match_zero = lambda way, node: next(self.connected(node['id'], **way), None) is None
         id_set = lambda it: {n['id'] for n in it}
 
         no_incoming = id_set(self.find_nodes({'direction': 'incoming'}, match_zero))
