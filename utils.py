@@ -82,15 +82,15 @@ class HDict(UserDict):
             yield from self.connected(item_id, *via_ids, returns=returns, direction='outgoing')
             return
 
-        for src, dst in self['conn']:
-            if direction == 'incoming':
-                src, dst = dst, src
+        for e in self['conn']:
+            src, dst = e if direction == 'outgoing' else reversed(e)
+
             if src != item_id:
                 continue
             to_node = isinstance(dst, int)
             if (returns == 'edges' and to_node) or (returns == 'nodes' and not to_node):
                 continue
-            if all(any(s == src and d == dst for s, d in self.connected(via_id, direction='outgoing'))
+            if all(any(e == e_ for e_ in self.connected(via_id, direction='outgoing'))
                    for via_id in via_ids):
                 yield dst
 
