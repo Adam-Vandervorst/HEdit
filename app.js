@@ -544,7 +544,7 @@ class H {
         if (!('conn' in obj && 'data' in obj))
             throw Error("'conn' and 'data' are necessary for deserialization.");
 
-        if (obj.version|0 < 2)
+        if ((obj.version|0) < 2)
             obj.conn = obj.conn.map(edgeConvert);
 
         obj.name = obj.name || "Unnamed";
