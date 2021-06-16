@@ -223,3 +223,55 @@ class HDict(UserDict):
 
         dct['conn'] = list(map(to_tuple, dct['conn']))
         return cls(dct)
+
+
+def maybe_self_loop(it):
+    """
+    If there's a pair (a, a) in `it`, returns a, else returns None.
+    """
+    for i, o in it:
+        if i == o:
+            return i
+    return None
+
+
+def maybe_duplicate(it, sink=False):
+    """
+    Returns the a duplicate value in the source or sink position, if it exists.
+    """
+    extrema = set()
+    for e in map(itemgetter(sink), it):
+        if e in extrema:
+            return e
+        extrema.add(e)
+    return None
+
+
+def maybe_single(it, sink=False):
+    """
+    Returns the value of the sole source or sink, if it exists.
+    """
+    ss_it = map(itemgetter(sink), it)
+    value = next(ss_it, None)
+    for e in ss_it:
+        if e != value:
+            return None
+    return value
+
+
+def maybe_cycle_elem(it):
+    """
+    Returns pair that completes a cycle, if there are cycles.
+    """
+    reachable = defaultdict(set)
+
+    for s, d in it:
+        reachable[s].add(d)
+
+        for a, bs in list(reachable.items()):
+            if s in bs:
+                if a == d or a in reachable[d]:
+                    return s, d
+                bs.add(d)
+                bs.update(reachable[d])
+    return None
