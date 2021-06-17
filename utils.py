@@ -4,11 +4,11 @@ Currently, only a quite bare-bones and low-performance class is available, HDict
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
 """
-from dataclasses import make_dataclass, field, fields
 from collections import UserDict, defaultdict
 from operator import itemgetter
 from itertools import chain, tee
 from functools import wraps
+import dataclasses
 import json
 
 
@@ -179,17 +179,17 @@ class HDict(UserDict):
             between_items = s_items and d_items
             item_direction = 'either' if between_items else ('outgoing' if d_items else 'incoming')
             sole = maybe_duplicate(es, direction=item_direction) is None
-            field_info = field(init=False, metadata=dict(id=i, between_items=between_items, sole=sole))
+            field_info = dataclasses.field(init=False, metadata=dict(id=i, between_items=between_items, sole=sole))
             field_type = {(1, 1): name, (1, 0): f"List[{name}]", (0, 1): "str", (0, 0): "List[str]"}[(between_items, sole)]
             fs.append((data, field_type, field_info))
-        return make_dataclass(name, fs)
+        return dataclasses.make_dataclass(name, fs)
 
     @allow_in('property_graph')
     def as_objects(self, item_ids, constructor):
         id_object = {i: constructor(i, d) for i, d in self.get_info(item_ids, 'id', 'data')}
 
         for i, o in id_object.items():
-            for f in fields(constructor):
+            for f in dataclasses.fields(constructor):
                 if f.init: continue
                 ids = self.connected(o.id, f.metadata['id'], direction='outgoing')
                 ins = map(id_object.__getitem__, ids) if f.metadata['between_items'] else self.get_info(ids, 'data')
