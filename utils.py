@@ -8,6 +8,7 @@ from dataclasses import make_dataclass, field, fields
 from collections import UserDict, defaultdict
 from operator import itemgetter
 from itertools import chain, tee
+from functools import wraps
 import json
 
 
@@ -22,6 +23,15 @@ class HDict(UserDict):
     }
     where Id is either integer or (Id, Id).
     """
+    def allow_in(*modes):
+        def wrapper(method):
+            @wraps(method)
+            def safe_method(ins, *args, **kwargs):
+                if 'mode' not in ins or ins['mode'] in modes:
+                    return method(ins, *args, **kwargs)
+                raise ValueError(f"{method.__name__} is only defined if the mode is any of {modes}.")
+            return safe_method
+        return wrapper
 
     def get_info(self, node_ids, *fields):
         """
@@ -106,6 +116,7 @@ class HDict(UserDict):
             adjacency[i] = nbs
         return adjacency
 
+    @allow_in('T', 'property_graph', 'edge_colored_graph', 'graph')
     def as_hypergraph(self, remove_subsumed=True):
         """
         Returns a list of directed hyper-edges.
@@ -119,9 +130,6 @@ class HDict(UserDict):
                 return False
             return enclosing[start_i:] == e
         """
-        if 'mode' in self and self['mode'] == 'H':
-            raise ValueError("H's can not be sensibly interpreted as hypergraphs.")
-
         def tedge_to_hyperedge(s, d):
             yield s
             if isinstance(d, tuple):
@@ -132,6 +140,7 @@ class HDict(UserDict):
         return [tuple(tedge_to_hyperedge(*e)) for e in self['conn']
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
+    @allow_in('property_graph')
     def split_node_types(self):
         """
         For some property graphs - a digraph where every edge is tagged with a set of nodes - a nice interpretation exists.
@@ -141,9 +150,6 @@ class HDict(UserDict):
         2. only connect to regular edges and have no incoming connections
         3. be connected to the same number of 1. nodes as the other nodes in 3. (not enforced)
         """
-        if 'mode' in self and self['mode'] != 'property_graph':
-            raise ValueError("Node types are a feature of property-graphs only.")
-
         match_zero = lambda **way: lambda node: next(self.connected(node['id'], **way), None) is None
         id_set = lambda it: set(map(itemgetter('id'), it))
 
@@ -160,10 +166,8 @@ class HDict(UserDict):
         assert type_1 & type_2 == type_2 & type_3 == type_3 & type_1 == set()
         return type_1, type_2, type_3
 
+    @allow_in('property_graph')
     def get_structure(self, type_1, type_2, type_3):
-        if 'mode' in self and self['mode'] != 'property_graph':
-            raise ValueError("Node types are a feature of property-graphs only.")
-
         name = f"{self.get('name', '')}Item"
         fs = [('id', 'int'), ('data', 'str')]
 
@@ -180,10 +184,8 @@ class HDict(UserDict):
             fs.append((data, field_type, field_info))
         return make_dataclass(name, fs)
 
+    @allow_in('property_graph')
     def as_objects(self, item_ids, constructor):
-        if 'mode' in self and self['mode'] != 'property_graph':
-            raise ValueError("Node types are a feature of property-graphs only.")
-
         id_object = {i: constructor(i, d) for i, d in self.get_info(item_ids, 'id', 'data')}
 
         for i, o in id_object.items():
