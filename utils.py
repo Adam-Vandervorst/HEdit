@@ -4,6 +4,7 @@ Currently, only a quite bare-bones and low-performance class is available, HDict
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
 """
+from dataclasses import make_dataclass, field, fields
 from collections import UserDict, defaultdict
 from operator import itemgetter
 from itertools import chain, tee
@@ -157,36 +158,42 @@ class HDict(UserDict):
 
         assert type_1 | type_2 | type_3 == id_set(self['data'])
         assert type_1 & type_2 == type_2 & type_3 == type_3 & type_1 == set()
-
         return type_1, type_2, type_3
 
-    def as_object_adjacency(self, type_1, type_2, type_3):
-        """
-        Uses the types from `split_node_types` to return an adjacency structure with the implied objects.
-        Specifically this function produces a id-object of where each object is a type 3 node with the following structure:
-        {
-            **type_3 node,
-            type_2 node data: type_1 node data, ...,
-            type_2 node data: [type_3 node id, ...], ...,
-            type_2 node data: [type_1 node data, ...], ...,
-        }
-        """
-        adjacency = {}
+    def get_structure(self, type_1, type_2, type_3):
+        if 'mode' in self and self['mode'] != 'property_graph':
+            raise ValueError("Node types are a feature of property-graphs only.")
 
-        for dct in map(dict.copy, self.get_info(type_3)):
-            i = dct['id']
+        name = f"{self.get('name', '')}Item"
+        fs = [('id', 'int'), ('data', 'str')]
 
-            for pi in type_2:
-                p, = self.get_info(pi, 'data')
-                maybe_vi = set(self.connected(i, pi, direction='incoming')) & type_1
-                for v in self.get_info(maybe_vi, 'data'):
-                    dct[p] = v
-                    break
-                else:
-                    vs = set(self.connected(i, pi, direction='outgoing'))
-                    dct[p] = list(vs if vs <= type_3 else self.get_info(vs & type_1, 'data'))
-            adjacency[i] = dct
-        return adjacency
+        for i, data in self.get_info(type_2, 'id', 'data'):
+            es = list(self.connected(i))
+            ss, ds = map(set, zip(*es))
+            s_items = bool(ss & type_3)
+            d_items = bool(ds & type_3)
+            between_items = s_items and d_items
+            item_direction = 'either' if between_items else ('outgoing' if d_items else 'incoming')
+            sole = maybe_duplicate(es, direction=item_direction) is None
+            field_info = field(init=False, metadata=dict(id=i, between_items=between_items, sole=sole))
+            field_type = {(1, 1): name, (1, 0): f"List[{name}]", (0, 1): "str", (0, 0): "List[str]"}[(between_items, sole)]
+            fs.append((data, field_type, field_info))
+        return make_dataclass(name, fs)
+
+    def as_objects(self, item_ids, constructor):
+        if 'mode' in self and self['mode'] != 'property_graph':
+            raise ValueError("Node types are a feature of property-graphs only.")
+
+        id_object = {i: constructor(i, d) for i, d in self.get_info(item_ids, 'id', 'data')}
+
+        for i, o in id_object.items():
+            for f in fields(constructor):
+                if f.init: continue
+                ids = self.connected(o.id, f.metadata['id'], direction='outgoing')
+                ins = map(id_object.__getitem__, ids) if f.metadata['between_items'] else self.get_info(ids, 'data')
+                prs = next(ins) if f.metadata['sole'] else list(ins)
+                setattr(o, f.name, prs)
+        return list(id_object.values())
 
     @classmethod
     def load_from_path(cls, path, mode='T'):
