@@ -4,8 +4,10 @@ Currently, only a quite bare-bones and low-performance class is available, HDict
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
 """
+from collections import UserDict, defaultdict
+from operator import itemgetter
+from itertools import chain, tee
 import json
-from collections import UserDict
 
 
 class HDict(UserDict):
@@ -32,25 +34,18 @@ class HDict(UserDict):
             node_ids = [node_ids]
 
         for node_id in node_ids:
-            for node in self['data']:
-                if node['id'] == node_id:
-                    if not fields:
-                        yield node
-                    elif len(fields) == 1:
-                        yield node[fields[0]]
-                    else:
-                        yield tuple(map(node.get, fields))
-                    break
-            else:
+            n = next(self.find_nodes(id=node_id), None)
+            if n is None:
                 raise KeyError(f"No node with id {node_id} found.")
+            yield itemgetter(*fields)(n) if fields else n
 
-    def find_nodes(self, prop, fits=lambda prop, node: prop == node['data']):
+    def find_nodes(self, fits=lambda n: True, **criteria):
         """
-        Yields all nodes matching data with some definition of matching 'fits'.
-        By default this is equality to the nodes' data.
+        Yields all nodes matching 'fits' and satisfying each of the criteria fields.
         """
         for node in self['data']:
-            if fits(prop, node):
+            if fits(node) and all(name in node and node[name] == value
+                                  for name, value in criteria.items()):
                 yield node
 
     def get_node_id(self, data, allowed=None, disallowed=()):
@@ -60,24 +55,26 @@ class HDict(UserDict):
 
         Raises KeyError if no matches are found and ValueError if more than one match is found.
         """
-        results = [n['id'] for n in self.find_nodes(data)
-                   if (allowed is None or n['id'] in allowed) and n['id'] not in disallowed]
-        if not results:
+        considered = lambda n: (allowed is None or n['id'] in allowed) and n['id'] not in disallowed
+        result_it = map(itemgetter('id'), self.find_nodes(considered, data=data))
+
+        result = next(result_it, None)
+        if result is None:
             raise KeyError(f"No node with data {data!r} found.")
-        if len(results) > 1:
-            raise ValueError(f"Ambiguous id retrieval for {data!r},"
-                             "following nodes have this data:\n" + '\n'.join(map(str, results)))
-        return results[0]
+        conflict = next(result_it, None)
+        if conflict is not None:
+            raise ValueError(f"Ambiguous id retrieval for {data!r}: id {result} and {conflict}.")
+        return result
 
     def connected(self, item_id, *via_ids, returns='both', direction='outgoing'):
         """
         Yields all connected ids of an item if they're connected via all via_ids.
         If direction is 'outgoing' or 'incoming', yields all destinations/children or sources/parent respectively.
-        When direction is 'both', returns all items connected to given item.
+        When direction is 'either', returns all items connected to given item.
         The item_id can be either the id of a node or an edge.
         The returned items can be filtered to to contain 'nodes', 'edges', or 'both'.
         """
-        if direction == 'both':
+        if direction == 'either':
             yield from self.connected(item_id, *via_ids, returns=returns, direction='incoming')
             yield from self.connected(item_id, *via_ids, returns=returns, direction='outgoing')
             return
@@ -101,8 +98,7 @@ class HDict(UserDict):
         If 'omit_empty' is true, items with no adjacent items are not included.
         """
         adjacency = {}
-        node_ids, edge_ids = [n['id'] for n in self['data']], self['conn']
-        for i in node_ids + edge_ids:
+        for i in chain(map(itemgetter('id'), self['data']), self['conn']):
             nbs = list(self.connected(i, direction=direction))
             if omit_empty and not nbs:
                 continue
@@ -125,14 +121,14 @@ class HDict(UserDict):
         if 'mode' in self and self['mode'] == 'H':
             raise ValueError("H's can not be sensibly interpreted as hypergraphs.")
 
-        def tedge_to_hyperedge(e):
-            yield e[0]
-            if isinstance(e[1], tuple):
-                yield from tedge_to_hyperedge(e[1])
+        def tedge_to_hyperedge(s, d):
+            yield s
+            if isinstance(d, tuple):
+                yield from tedge_to_hyperedge(*d)
             else:
-                yield e[1]
+                yield d
 
-        return [tuple(tedge_to_hyperedge(e)) for e in self['conn']
+        return [tuple(tedge_to_hyperedge(*e)) for e in self['conn']
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
     def split_node_types(self):
@@ -147,13 +143,13 @@ class HDict(UserDict):
         if 'mode' in self and self['mode'] != 'property_graph':
             raise ValueError("Node types are a feature of property-graphs only.")
 
-        match_zero = lambda way, node: next(self.connected(node['id'], **way), None) is None
-        id_set = lambda it: {n['id'] for n in it}
+        match_zero = lambda **way: lambda node: next(self.connected(node['id'], **way), None) is None
+        id_set = lambda it: set(map(itemgetter('id'), it))
 
-        no_incoming = id_set(self.find_nodes({'direction': 'incoming'}, match_zero))
-        no_outgoing = id_set(self.find_nodes({'direction': 'outgoing'}, match_zero))
-        only_to_nodes = id_set(self.find_nodes({'returns': 'edges', 'direction': 'outgoing'}, match_zero))
-        only_to_edges = id_set(self.find_nodes({'returns': 'nodes', 'direction': 'outgoing'}, match_zero))
+        no_incoming = id_set(self.find_nodes(match_zero(direction='incoming')))
+        no_outgoing = id_set(self.find_nodes(match_zero(direction='outgoing')))
+        only_to_nodes = id_set(self.find_nodes(match_zero(returns='edges', direction='outgoing')))
+        only_to_edges = id_set(self.find_nodes(match_zero(returns='nodes', direction='outgoing')))
 
         type_1 = (no_incoming | no_outgoing) & only_to_nodes
         type_2 = no_incoming & only_to_edges
@@ -235,23 +231,32 @@ def maybe_self_loop(it):
     return None
 
 
-def maybe_duplicate(it, sink=False):
+def maybe_duplicate(it, direction='incoming'):
     """
     Returns the a duplicate value in the source or sink position, if it exists.
     """
+    if direction == 'either':
+        it_in, it_out = tee(it)
+        return maybe_duplicate(it_in, 'incoming') or maybe_duplicate(it_out, 'outgoing')
+
+    ss_it = map(itemgetter(0 if direction == 'incoming' else 1), it)
     extrema = set()
-    for e in map(itemgetter(sink), it):
+    for e in ss_it:
         if e in extrema:
             return e
         extrema.add(e)
     return None
 
 
-def maybe_single(it, sink=False):
+def maybe_single(it, direction='incoming'):
     """
     Returns the value of the sole source or sink, if it exists.
     """
-    ss_it = map(itemgetter(sink), it)
+    if direction == 'either':
+        it_in, it_out = tee(it)
+        return maybe_single(it_in, 'incoming') or maybe_single(it_out, 'outgoing')
+
+    ss_it = map(itemgetter(0 if direction == 'incoming' else 1), it)
     value = next(ss_it, None)
     for e in ss_it:
         if e != value:
