@@ -140,7 +140,7 @@ class HDict(UserDict):
         return [tuple(tedge_to_hyperedge(*e)) for e in self['conn']
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
-    @allow_in('property_graph')
+    @allow_in('property_graph', 'edge_colored_graph')
     def split_node_types(self):
         """
         For some property graphs - a digraph where every edge is tagged with a set of nodes - a nice interpretation exists.
@@ -166,7 +166,7 @@ class HDict(UserDict):
         assert type_1 & type_2 == type_2 & type_3 == type_3 & type_1 == set()
         return type_1, type_2, type_3
 
-    @allow_in('property_graph')
+    @allow_in('property_graph', 'edge_colored_graph')
     def get_structure(self, type_1, type_2, type_3):
         name = f"{self.get('name', '')}Item"
         fs = [('id', 'int'), ('data', 'str')]
@@ -184,7 +184,7 @@ class HDict(UserDict):
             fs.append((data, field_type, field_info))
         return dataclasses.make_dataclass(name, fs)
 
-    @allow_in('property_graph')
+    @allow_in('property_graph', 'edge_colored_graph')
     def as_objects(self, item_ids, constructor):
         id_object = {i: constructor(i, d) for i, d in self.get_info(item_ids, 'id', 'data')}
 
