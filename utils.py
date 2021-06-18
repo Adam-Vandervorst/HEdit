@@ -140,7 +140,7 @@ class HDict(UserDict):
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
     @allow_in('property_graph', 'edge_colored_graph')
-    def split_node_types(self):
+    def node_types(self):
         """
         For some property graphs - a digraph where every edge is tagged with a set of nodes - a nice interpretation exists.
         Namely nodes can have categories, labels, and certain kinds of neighbors.
@@ -167,6 +167,10 @@ class HDict(UserDict):
 
     @allow_in('property_graph', 'edge_colored_graph')
     def synthesize_structure(self, type_1, type_2, type_3):
+        """
+        Uses the node types from `node_types` to interpret type 3 nodes as items.
+        A dataclass is returned with outgoing type 2 nodes as property names and type 1 or type 3 nodes as values.
+        """
         from dataclasses import field, make_dataclass
         name = f"{self.get('name', '')}Item"
         fs = [('id', 'int'), ('data', 'str')]
@@ -184,15 +188,18 @@ class HDict(UserDict):
 
     @allow_in('property_graph', 'edge_colored_graph')
     def as_objects(self, type_1, type_2, type_3, cls):
+        """
+        Uses the node types from `node_types` and a class to construct objects as implied by the graph.
+        """
         prop_id = {d: i for i, d in self.get_info(type_2, 'id', 'data')}
         id_object = {i: cls(i, d) for i, d in self.get_info(type_3, 'id', 'data')}
 
-        for d, T in typing.get_type_hints(cls, globalns=vars(typing), localns={cls.__name__: cls}).items():
+        for d, T in typing.get_type_hints(cls, vars(typing), {cls.__name__: cls}).items():
             if d not in prop_id: continue
             for i, o in id_object.items():
                 ids = self.connected(o.id, prop_id[d], direction='outgoing')
                 ins = map(id_object.__getitem__, ids) if collection_of(T, cls) else self.get_info(ids, 'data')
-                prs = list(ins) if is_collection(T) else next(ins)
+                prs = list(ins) if proper_collection(T) else next(ins)
                 setattr(o, d, prs)
         return list(id_object.values())
 
@@ -229,7 +236,10 @@ class HDict(UserDict):
         return cls(dct)
 
 
-def is_collection(C):
+def proper_collection(C):
+    """
+    Checks if type `C` is a collection (not including `str`).
+    """
     try:
         return issubclass(C, typing.Collection) and not issubclass(C, str)
     except TypeError:
@@ -238,7 +248,10 @@ def is_collection(C):
 
 
 def collection_of(C, T):
-    if not is_collection(C): return False
+    """
+    Checks if type `C` is a collection (not including `str`) containing type `T`.
+    """
+    if not proper_collection(C): return False
     t, = typing.get_args(C)
     return issubclass(t, T)
 
@@ -247,9 +260,9 @@ def maybe_self_loop(it):
     """
     If there's a pair (a, a) in `it`, returns a, else returns None.
     """
-    for i, o in it:
-        if i == o:
-            return i
+    for s, d in it:
+        if s == d:
+            return s
     return None
 
 
