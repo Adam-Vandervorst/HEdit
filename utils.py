@@ -4,11 +4,11 @@ Currently, only a quite bare-bones and low-performance class is available, HDict
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
 """
+import typing
 from collections import UserDict, defaultdict
 from operator import itemgetter
 from itertools import chain, tee
 from functools import wraps
-import dataclasses
 import json
 
 
@@ -136,7 +136,6 @@ class HDict(UserDict):
                 yield from tedge_to_hyperedge(*d)
             else:
                 yield d
-
         return [tuple(tedge_to_hyperedge(*e)) for e in self['conn']
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
@@ -167,34 +166,34 @@ class HDict(UserDict):
         return type_1, type_2, type_3
 
     @allow_in('property_graph', 'edge_colored_graph')
-    def get_structure(self, type_1, type_2, type_3):
+    def synthesize_structure(self, type_1, type_2, type_3):
+        from dataclasses import field, make_dataclass
         name = f"{self.get('name', '')}Item"
         fs = [('id', 'int'), ('data', 'str')]
 
         for i, data in self.get_info(type_2, 'id', 'data'):
             es = list(self.connected(i))
-            ss, ds = map(set, zip(*es))
-            s_items = bool(ss & type_3)
-            d_items = bool(ds & type_3)
+            s_items, d_items = map(type_3.intersection, zip(*es))
             between_items = s_items and d_items
             item_direction = 'either' if between_items else ('outgoing' if d_items else 'incoming')
             sole = maybe_duplicate(es, direction=item_direction) is None
-            field_info = dataclasses.field(init=False, metadata=dict(id=i, between_items=between_items, sole=sole))
-            field_type = {(1, 1): name, (1, 0): f"List[{name}]", (0, 1): "str", (0, 0): "List[str]"}[(between_items, sole)]
-            fs.append((data, field_type, field_info))
-        return dataclasses.make_dataclass(name, fs)
+            base_type = name if between_items else "str"
+            field_type = base_type if sole else f"List[{base_type}]"
+            fs.append((data, field_type, field(init=False)))
+        return make_dataclass(name, fs)
 
     @allow_in('property_graph', 'edge_colored_graph')
-    def as_objects(self, item_ids, constructor):
-        id_object = {i: constructor(i, d) for i, d in self.get_info(item_ids, 'id', 'data')}
+    def as_objects(self, type_1, type_2, type_3, cls):
+        prop_id = {d: i for i, d in self.get_info(type_2, 'id', 'data')}
+        id_object = {i: cls(i, d) for i, d in self.get_info(type_3, 'id', 'data')}
 
-        for i, o in id_object.items():
-            for f in dataclasses.fields(constructor):
-                if f.init: continue
-                ids = self.connected(o.id, f.metadata['id'], direction='outgoing')
-                ins = map(id_object.__getitem__, ids) if f.metadata['between_items'] else self.get_info(ids, 'data')
-                prs = next(ins) if f.metadata['sole'] else list(ins)
-                setattr(o, f.name, prs)
+        for d, T in typing.get_type_hints(cls, globalns=vars(typing), localns={cls.__name__: cls}).items():
+            if d not in prop_id: continue
+            for i, o in id_object.items():
+                ids = self.connected(o.id, prop_id[d], direction='outgoing')
+                ins = map(id_object.__getitem__, ids) if collection_of(T, cls) else self.get_info(ids, 'data')
+                prs = list(ins) if is_collection(T) else next(ins)
+                setattr(o, d, prs)
         return list(id_object.values())
 
     @classmethod
@@ -228,6 +227,20 @@ class HDict(UserDict):
 
         dct['conn'] = list(map(to_tuple, dct['conn']))
         return cls(dct)
+
+
+def is_collection(C):
+    try:
+        return issubclass(C, typing.Collection) and not issubclass(C, str)
+    except TypeError:
+        OC = typing.get_origin(C)
+        return issubclass(OC, typing.Collection) and not issubclass(OC, str)
+
+
+def collection_of(C, T):
+    if not is_collection(C): return False
+    t, = typing.get_args(C)
+    return issubclass(t, T)
 
 
 def maybe_self_loop(it):
