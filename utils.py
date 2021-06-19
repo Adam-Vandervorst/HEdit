@@ -7,7 +7,7 @@ In Python console, you can write help(HDict) to view the useful methods, and the
 import typing
 from collections import UserDict, defaultdict
 from operator import itemgetter
-from itertools import chain, tee
+from itertools import chain, tee, starmap
 from functools import wraps
 import json
 
@@ -130,13 +130,7 @@ class HDict(UserDict):
                 return False
             return enclosing[start_i:] == e
         """
-        def tedge_to_hyperedge(s, d):
-            yield s
-            if isinstance(d, tuple):
-                yield from tedge_to_hyperedge(*d)
-            else:
-                yield d
-        return [tuple(tedge_to_hyperedge(*e)) for e in self['conn']
+        return [tuple(edge_ids(e)) for e in self['conn']
                 if not remove_subsumed or next(self.connected(e, direction='incoming'), None) is None]
 
     @allow_in('property_graph', 'edge_colored_graph')
@@ -191,8 +185,8 @@ class HDict(UserDict):
         """
         Uses the node types from `node_types` and a class to construct objects as implied by the graph.
         """
-        prop_id = {d: i for i, d in self.get_info(type_2, 'id', 'data')}
-        id_object = {i: cls(i, d) for i, d in self.get_info(type_3, 'id', 'data')}
+        prop_id = dict(self.get_info(type_2, 'data', 'id'))
+        id_object = dict(zip(type_3, starmap(cls, self.get_info(type_3, 'id', 'data'))))
 
         for d, T in typing.get_type_hints(cls, vars(typing), {cls.__name__: cls}).items():
             if d not in prop_id: continue
@@ -227,12 +221,7 @@ class HDict(UserDict):
         if 'mode' in dct and not modes.index(mode) <= modes.index(dct['mode']):
             print(f"Required mode {mode!r} is stricter than found mode {dct['mode']!r}.")
 
-        def to_tuple(list_id):
-            if isinstance(list_id, list):
-                return tuple(to_tuple(t) for t in list_id)
-            return list_id
-
-        dct['conn'] = list(map(to_tuple, dct['conn']))
+        dct['conn'] = list(map(convert, dct['conn']))
         return cls(dct)
 
 
@@ -240,11 +229,8 @@ def proper_collection(C):
     """
     Checks if type `C` is a collection (not including `str`).
     """
-    try:
-        return issubclass(C, typing.Collection) and not issubclass(C, str)
-    except TypeError:
-        OC = typing.get_origin(C)
-        return issubclass(OC, typing.Collection) and not issubclass(OC, str)
+    C = typing.get_origin(C) or C
+    return issubclass(C, typing.Collection) and not issubclass(C, str)
 
 
 def collection_of(C, T):
@@ -254,6 +240,31 @@ def collection_of(C, T):
     if not proper_collection(C): return False
     t, = typing.get_args(C)
     return issubclass(t, T)
+
+
+def convert(maybe_container, to_type=tuple):
+    """
+    Convert some container recursively to some other container `to_type`.
+    """
+    if proper_collection(type(maybe_container)):
+        return to_type(convert(t, to_type) for t in maybe_container)
+    return maybe_container
+
+
+def edge_ids(e, flatten='outgoing'):
+    """
+    Yields the id's of an edge.
+    The flatten argument can be used to flatten the incoming or outgoing recursive sides, or both.
+    """
+    s, d = e
+    if flatten in ('incoming', 'both') and isinstance(s, tuple):
+        yield from edge_ids(s)
+    else:
+        yield s
+    if flatten in ('outgoing', 'both') and isinstance(d, tuple):
+        yield from edge_ids(d)
+    else:
+        yield d
 
 
 def maybe_self_loop(it):
