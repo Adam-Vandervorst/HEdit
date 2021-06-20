@@ -558,14 +558,13 @@ class H {
         this.mode = this.modes.indexOf(ser.mode);
         this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
         this.edges = [];
-        while (this.edges.length !== ser.conn.length) {
-            console.log(this.edges.length);
-            ser.conn.forEach(d => {
-                let src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
-                let dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
-                if (src && dst) this.edges.push(new Edge(src, dst));
+        while (ser.conn.length)
+            ser.conn = ser.conn.filter(d => {
+                const src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
+                const dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
+                if (src && dst) return this.edges.push(new Edge(src, dst)) && false;
+                return true;
             });
-        }
         this.node_count = Math.max(...ser.data.map(d => d.id)) + 1;
         return this;
     }
