@@ -461,6 +461,17 @@ class H {
         }
     }
 
+    walk_selected(outgoing = true) {
+        let selected_atm = this.selected.slice();
+        let newly_selected = selected_atm.flatMap(item => item instanceof Node ?
+            this.edges.filter(e => e[outgoing ? "src" : "dst"] == item) : item[outgoing ? "dst" : "src"]);
+        let step = {do: () => {this.selected.forEach(i => i.selected = false); (this.selected = newly_selected).forEach(i => i.selected = true)},
+                    undo: () => {this.selected.forEach(i => i.selected = false); (this.selected = selected_atm).forEach(i => i.selected = true)},
+                    str: `Walk ${selected_atm.map(show).join(', ')} to ${[outgoing ? "outgoing" : "incoming"]} (${newly_selected.map(show).join(', ')})`};
+        step.do();
+        this.history.push(step);
+    }
+
     connect_selected() {
         let selected_atm = this.selected.slice();
         return (new_point, node_edge) => {
@@ -645,6 +656,8 @@ class Board {
             case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.update_open() && this.draw()); break;
             case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
             case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
+            case "w": this.h.walk_selected(true); break;
+            case "W": this.h.walk_selected(false); break;
             case "c": this.only_outgoing = !this.only_outgoing; break;
             case "C": this.only_incoming = !this.only_incoming; break;
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
