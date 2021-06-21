@@ -142,6 +142,7 @@ class HDict(UserDict):
         1. only connect to other nodes with exactly 1 tag and is either a source or a sink node
         2. only connect to regular edges and have no incoming connections
         3. be connected to the same number of 1. nodes as the other nodes in 3. (not enforced)
+        Nodes that are not connected to other items are ignored.
         """
         match_zero = lambda **way: lambda node: next(self.connected(node['id'], **way), None) is None
         id_set = lambda it: set(map(itemgetter('id'), it))
@@ -150,12 +151,12 @@ class HDict(UserDict):
         no_outgoing = id_set(self.find_nodes(match_zero(direction='outgoing')))
         only_to_nodes = id_set(self.find_nodes(match_zero(returns='edges', direction='outgoing')))
         only_to_edges = id_set(self.find_nodes(match_zero(returns='nodes', direction='outgoing')))
+        disconnected_nodes = id_set(self.find_nodes(match_zero(returns='both', direction='either')))
 
-        type_1 = (no_incoming | no_outgoing) & only_to_nodes
-        type_2 = no_incoming & only_to_edges
-        type_3 = id_set(self['data']) - type_1 - type_2
+        type_1 = ((no_incoming | no_outgoing) & only_to_nodes) - disconnected_nodes
+        type_2 = (no_incoming & only_to_edges) - disconnected_nodes
+        type_3 = id_set(self['data']) - type_1 - type_2 - disconnected_nodes
 
-        assert type_1 | type_2 | type_3 == id_set(self['data'])
         assert type_1 & type_2 == type_2 & type_3 == type_3 & type_1 == set()
         return type_1, type_2, type_3
 
