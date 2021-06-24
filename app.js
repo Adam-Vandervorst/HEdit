@@ -464,7 +464,8 @@ class H {
     walk_selected(outgoing = true) {
         let selected_atm = this.selected.slice();
         let newly_selected = selected_atm.flatMap(item => item instanceof Node ?
-            this.edges.filter(e => e[outgoing ? "src" : "dst"] == item) : item[outgoing ? "dst" : "src"]);
+            this.edges.filter(e => e[outgoing ? "src" : "dst"] == item) : item[outgoing ? "dst" : "src"])
+            .filter((v, i, a) => a.indexOf(v) == i);
         let step = {do: () => {this.selected.forEach(i => i.selected = false); (this.selected = newly_selected).forEach(i => i.selected = true)},
                     undo: () => {this.selected.forEach(i => i.selected = false); (this.selected = selected_atm).forEach(i => i.selected = true)},
                     str: `Walk ${selected_atm.map(show).join(', ')} to ${[outgoing ? "outgoing" : "incoming"]} (${newly_selected.map(show).join(', ')})`};
