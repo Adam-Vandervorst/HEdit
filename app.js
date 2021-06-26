@@ -680,7 +680,7 @@ class Board {
                             else this.h.move(0, 1, this.c); break;
             case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}; this.update_open();}
                             else this.h.move(-1, 0, this.c); break;
-            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open();}
+            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.h.focus(0, 0, this.c);}
                             else this.h.move(1, 0, this.c); break;
             case " ": let [mx, my] = middle(...this.h.nodes); this.h.focus(this.canvas.width/2 - mx, this.canvas.height/2 - my, this.c); break;
             case "Escape": {this.partial = null; this.h.deselect();} break;
