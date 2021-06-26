@@ -16,6 +16,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/
 */
 
+'use strict';
+
 function isTouch(e) {
     try {
         return e.sourceCapabilities.firesTouchEvents
@@ -78,20 +80,20 @@ function mod(x, m) {
 }
 
 function randBetween(low, high) {
-    return Math.floor(Math.random() * (high - low + 1)) + low;
+    return Math.floor(Math.random()*(high - low + 1)) + low;
 }
 
 function std(array) {
-    const n = array.length, mean = array.reduce((a,b) => a+b)/n;
-    return Math.sqrt(array.map(x => Math.pow(x-mean,2)).reduce((a,b) => a+b)/n);
+    let n = array.length, mean = array.reduce((a, b) => a+b)/n;
+    return Math.sqrt(array.map(x => Math.pow(x-mean, 2)).reduce((a, b) => a+b)/n);
 }
 
 function lightness(rgb) {
-    const [r, g, b] = rgb;
+    let [r, g, b] = rgb;
     return (0.299*r + 0.587*g + 0.114*b)/255;
 }
 
-const _test_canvas = document.createElement('canvas'), _test_ctx = _test_canvas.getContext("2d");
+let _test_canvas = document.createElement('canvas'), _test_ctx = _test_canvas.getContext("2d");
 _test_canvas.width = 1; _test_canvas.height = 1; _test_ctx.font = "15px sans-serif";
 function colorToRgb(str) {
     // TODO add hsl black
@@ -104,7 +106,7 @@ function colorToRgb(str) {
 }
 
 function componentToHex(c) {
-    const hex = c.toString(16);
+    let hex = c.toString(16);
     return hex.length === 1 ? "0" + hex : hex;
 }
 
@@ -113,7 +115,7 @@ function rgbToHex(rgb) {
 }
 
 function hexToRgb(hex) {
-    const bigint = parseInt(hex[0] == '#' ? hex.substring(1) : hex, 16);
+    let bigint = parseInt(hex[0] == '#' ? hex.substring(1) : hex, 16);
     return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
 }
 
@@ -133,8 +135,8 @@ function dist(p1, p2) {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2))
 }
 
-function onSameSide(a,b, c,d) {
-    const det = (x1,y1, x2,y2) => x1*y2 - y1*x2
+function onSameSide(a, b, c, d) {
+    let det = (x1, y1, x2, y2) => x1*y2 - y1*x2
     let px = d.x - c.x,
         py = d.y - c.y;
     let l = det(px, py, a.x - c.x, a.y - c.y),
@@ -189,7 +191,7 @@ class Node {
     }
 
     draw(ctx) {
-        const a = .7, b = .9;
+        let a = .7, b = .9;
         ctx.beginPath();
         ctx.moveTo(this.x - this.width/2, this.y);
         ctx.bezierCurveTo(
@@ -363,13 +365,13 @@ class H {
     }
 
     restore(c) {this.focus(this.dx, this.dy, c)}
-    focus(x, y, c) {let t_matrix = c.getTransform(); c.translate(x - t_matrix.e/t_matrix.a, y - t_matrix.f/t_matrix.d); this.dx = x; this.dy = y;}
+    focus(x, y, c) {let t_matrix = c.getTransform(); c.translate(x - t_matrix.e/t_matrix.a, y - t_matrix.f/t_matrix.d); this.dx = x; this.dy = y}
     move(dx, dy, c) {this.dx += 30*dx; this.dy += 30*dy; c.translate(30*dx, 30*dy)}
-    scale(f) {let [x, y] = middle(...this.nodes); this.nodes.forEach(n => {n.x = (n.x - x)*(1+f)+x; n.y = (n.y - y)*(1+f)+y;})}
+    scale(f) {let [x, y] = middle(...this.nodes); this.nodes.forEach(n => {n.x = (n.x - x)*(1+f)+x; n.y = (n.y - y)*(1+f)+y})}
     tighten() {this.mode = Math.min(this.mode + 1, this.modes.length - 1)}
     loosen() {this.mode = Math.max(this.mode - 1, 0)}
-    redo() {if (this.buffer.length) {let step = this.buffer.pop(); step.do(); this.history.push(step);}}
-    undo() {if (this.history.length) {let step = this.history.pop(); step.undo(); this.buffer.push(step);}}
+    redo() {if (this.buffer.length) {let step = this.buffer.pop(); step.do(); this.history.push(step)}}
+    undo() {if (this.history.length) {let step = this.history.pop(); step.undo(); this.buffer.push(step)}}
 
     spawnNode(p) {
         let new_node = new Node(p, this.name + this.node_count, this.node_count);
@@ -565,15 +567,15 @@ class H {
     }
 
     deserialize(obj) {
-        const ser = this.deserializable(obj);
+        let ser = this.deserializable(obj);
         this.name = ser.name;
         this.mode = this.modes.indexOf(ser.mode);
         this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
         this.edges = [];
         while (ser.conn.length)
             ser.conn = ser.conn.filter(d => {
-                const src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
-                const dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
+                let src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
+                let dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
                 if (src && dst) return this.edges.push(new Edge(src, dst)) && false;
                 return true;
             });
@@ -614,13 +616,13 @@ class Board {
         this.canvas.addEventListener("touchstart", e => {let t = e.changedTouches[0]; this.touch = {
             x: t.clientX - this.h.dx, y: t.clientY  - this.h.dy,
             start_t: window.performance.now()
-        }}, false);
+        }}, {passive: true});
         this.canvas.addEventListener("touchend", e => {let t = e.changedTouches[0]; this.touch = {
             x: t.clientX - this.h.dx, y: t.clientY - this.h.dy,
             alt: window.performance.now() - this.touch.start_t > 300,
             static: Math.hypot(this.touch.x - t.clientX + this.h.dx, this.touch.y - t.clientY + this.h.dy) < 5,
             hit_color: rgbToHex(this.c.getImageData(t.clientX*this.sx|0, t.clientY*this.sy|0, 1, 1).data.slice(0, 3))
-        }; this.handleInteraction()}, false);
+        }; this.handleInteraction()}, {passive: true});
 
         this.canvas.addEventListener('contextmenu', e => e.preventDefault(), false)
         if (this.h.nodes.length) {
@@ -630,8 +632,8 @@ class Board {
         }
     }
 
-    get sx() {return this.canvas.width / parseInt(this.canvas.style.width, 10);}
-    get sy() {return this.canvas.height / parseInt(this.canvas.style.height, 10);}
+    get sx() {return this.canvas.width/parseInt(this.canvas.style.width, 10)}
+    get sy() {return this.canvas.height/parseInt(this.canvas.style.height, 10)}
 
     resetCanvas() {
         // HiDPI canvas adapted from http://www.html5rocks.com/en/tutorials/canvas/hidpi/
@@ -674,20 +676,20 @@ class Board {
             case "U": this.h.redo(); break;
             case "+": this.h.scale(.2); break;
             case "-": this.h.scale(-.2); break;
-            case "ArrowUp": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) - 1, this.hs.length)]; this.h.restore(this.c); this.update_open();}
+            case "ArrowUp": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) - 1, this.hs.length)]; this.h.restore(this.c); this.update_open()}
                             else this.h.move(0, -1, this.c); break;
-            case "ArrowDown": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) + 1, this.hs.length)]; this.h.restore(this.c); this.update_open();}
+            case "ArrowDown": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) + 1, this.hs.length)]; this.h.restore(this.c); this.update_open()}
                             else this.h.move(0, 1, this.c); break;
-            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}; this.update_open();}
+            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}; this.update_open()}
                             else this.h.move(-1, 0, this.c); break;
-            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.h.focus(0, 0, this.c);}
+            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.h.focus(0, 0, this.c)}
                             else this.h.move(1, 0, this.c); break;
             case " ": let [mx, my] = middle(...this.h.nodes); this.h.focus(this.canvas.width/2 - mx, this.canvas.height/2 - my, this.c); break;
-            case "Escape": {this.partial = null; this.h.deselect();} break;
+            case "Escape": {this.partial = null; this.h.deselect()} break;
             default: return;
         }
         window.requestAnimationFrame(this.draw);
-        if (e.stopPropagation) {e.stopPropagation(); e.preventDefault();}
+        if (e.stopPropagation) {e.stopPropagation(); e.preventDefault()}
     }
 
     handleInteraction() {
@@ -789,9 +791,9 @@ class Board {
     }
 }
 
-const colors = ['#F3C300', '#875692', '#F38400', '#5f8fbd', '#BE0032', '#dec25f', '#848482', '#018856', '#bd6e88', '#0167A5', '#c67562', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26']
-const default_node_color = '#101010', default_edge_color = '#888888', default_edge_color_alt = rgbToHex(hexToRgb(default_edge_color).map(c => c > 0 ? c - 1 : 1));
-const container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
+let colors = ['#F3C300', '#875692', '#F38400', '#5f8fbd', '#BE0032', '#dec25f', '#848482', '#018856', '#bd6e88', '#0167A5', '#c67562', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26']
+let default_node_color = '#101010', default_edge_color = '#888888', default_edge_color_alt = rgbToHex(hexToRgb(default_edge_color).map(c => c > 0 ? c - 1 : 1));
+let container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
 let board, random_color = false;
 
 window.addEventListener('resize', () => {
@@ -799,30 +801,25 @@ window.addEventListener('resize', () => {
     board.keypressHandler({key: " "});
 });
 
-window.addEventListener('load', () => {
-    /* hack to prevent firing the init script before the window object's values are populated */
-    setTimeout(() => {
-        const params = new URLSearchParams(window.location.search);
-        let param = null, start_h = new H(params.get('name'), params.get('mode'));
-        if (params.has('random_color')) random_color = true;
-        if (param = params.get('data')) start_h.deserialize(JSON.parse(decodeURI(param)));
-        new Promise((resolve, reject) => {
-            if (param = params.get('uri')) fetch(param, {credentials: 'include'})
-                .then(response => response.json())
-                .then(data => start_h.deserialize(data))
-                .finally(() => resolve(board = new Board(start_h)));
-            else resolve(board = new Board(start_h));
-        }).then(ins => {
-            if (param = params.get('selected')) JSON.parse(param)
-                .map(i => start_h.nodes.find(n => n.id == i) || start_h.edges.find(e => edgeEq(e.id, i)))
-                .filter(x => x).forEach(n => start_h.select(n)) || ins.draw();
-            if (params.has('hide_help')) ins.keypressHandler({key: "h"});
-            if (params.has('show_history')) ins.keypressHandler({key: "H"});
-            if (params.has('show_information')) ins.keypressHandler({key: "i"});
-            if (params.has('hide_gray')) ins.keypressHandler({key: "g"});
-            if (params.has('hide_disconnected')) ins.keypressHandler({key: "d"});
-            if (params.has('only_outgoing')) ins.keypressHandler({key: "c"});
-            if (params.has('only_incoming')) ins.keypressHandler({key: "C"});
-        })
-    }, 100);
-}, false);
+let params = new URLSearchParams(window.location.search);
+let param = null, param_h = new H(params.get('name'), params.get('mode'));
+if (params.has('random_color')) random_color = true;
+if (param = params.get('data')) param_h.deserialize(JSON.parse(decodeURI(param)));
+new Promise((resolve, reject) => {
+    if (param = params.get('uri')) fetch(param, {credentials: 'include'})
+        .then(response => response.json())
+        .then(data => param_h.deserialize(data))
+        .finally(() => resolve(board = new Board(param_h)));
+    else resolve(board = new Board(param_h));
+}).then(ins => {
+    if (param = params.get('selected')) JSON.parse(param)
+        .map(i => param_h.nodes.find(n => n.id == i) || param_h.edges.find(e => edgeEq(e.id, i)))
+        .filter(x => x).forEach(n => param_h.select(n)) || ins.draw();
+    if (params.has('hide_help')) ins.keypressHandler({key: "h"});
+    if (params.has('show_history')) ins.keypressHandler({key: "H"});
+    if (params.has('show_information')) ins.keypressHandler({key: "i"});
+    if (params.has('hide_gray')) ins.keypressHandler({key: "g"});
+    if (params.has('hide_disconnected')) ins.keypressHandler({key: "d"});
+    if (params.has('only_outgoing')) ins.keypressHandler({key: "c"});
+    if (params.has('only_incoming')) ins.keypressHandler({key: "C"});
+})
