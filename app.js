@@ -105,11 +105,6 @@ function colorToRgb(str) {
     return _test_ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)
 }
 
-function componentToHex(c) {
-    let hex = c.toString(16);
-    return hex.length === 1 ? "0" + hex : hex;
-}
-
 function rgbToHex(rgb) {
     return '#' + Array.from(rgb).map(x => Math.min(Math.round(x), 255).toString(16).padStart(2, '0')).join('');
 }
@@ -166,14 +161,9 @@ function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isA
         yield (last = f(last));
 }
 
-function dedup_merge(lol, extract_feature=x => x) {
-    let s = new Set(), xs = [], feature = null;
-    for (let l of lol) for (let e of l) {
-        feature = extract_feature(e);
-        if (s.has(feature)) continue;
-        xs.push(e); s.add(feature);
-    }
-    return xs;
+function representatives(a, extract=x => x) {
+    let features = {};
+    return a.filter(e => !features[extract(e)] && (features[extract(e)] = true))
 }
 
 
@@ -387,7 +377,7 @@ class H {
         while (to_be_deleted.size !== last_size) {
             last_size = to_be_deleted.size;
             to_be_deleted.forEach(i => this.edges.forEach(e => (e.dst === i || e.src === i) && to_be_deleted.add(e)));
-        };
+        }
 
         let step = {do: () => to_be_deleted.forEach(i => {remove(this.selected, i); i instanceof Edge ? remove(this.edges, i) : remove(this.nodes, i)}),
                     undo: () => to_be_deleted.forEach(i => i instanceof Edge ? this.edges.push(i) : this.nodes.push(i)),
@@ -438,8 +428,8 @@ class H {
         return (new_point, node_edge) => {
             if (node_edge) return;
             let [dx, dy] = [new_point.x - mx, new_point.y - my];
-            let step = {do: () => nodes_atm.forEach(n => {n.x += dx, n.y += dy}),
-                        undo: () => nodes_atm.forEach(n => {n.x -= dx, n.y -= dy}),
+            let step = {do: () => nodes_atm.forEach(n => {n.x += dx; n.y += dy}),
+                        undo: () => nodes_atm.forEach(n => {n.x -= dx; n.y -= dy}),
                         str: `Move ${nodes_atm.map(show).join(', ')}`};
             step.do();
             this.history.push(step);
@@ -450,8 +440,8 @@ class H {
         let selected_atm = this.selected.slice();
         let to_replace = [], referenced = [], by = [];
         this.edges.forEach(e => selected_atm.forEach(i => {
-            if (i === e.src) {to_replace.push(i); referenced.push(e); by.push("src")};
-            if (i === e.dst) {to_replace.push(i); referenced.push(e); by.push("dst")};
+            if (i === e.src) {to_replace.push(i); referenced.push(e); by.push("src")}
+            if (i === e.dst) {to_replace.push(i); referenced.push(e); by.push("dst")}
         }))
         return (new_point, node_edge) => {
             if (!node_edge) return;
@@ -466,7 +456,7 @@ class H {
     walk_selected(outgoing = true) {
         let selected_atm = this.selected.slice();
         let newly_selected = selected_atm.flatMap(item => item instanceof Node ?
-            this.edges.filter(e => e[outgoing ? "src" : "dst"] == item) : item[outgoing ? "dst" : "src"])
+            this.edges.filter(e => e[outgoing ? "src" : "dst"] === item) : item[outgoing ? "dst" : "src"])
             .filter((v, i, a) => a.indexOf(v) == i);
         let step = {do: () => {this.selected.forEach(i => i.selected = false); (this.selected = newly_selected).forEach(i => i.selected = true)},
                     undo: () => {this.selected.forEach(i => i.selected = false); (this.selected = selected_atm).forEach(i => i.selected = true)},
@@ -583,7 +573,6 @@ class H {
         return this;
     }
 
-    get summary() {return `'${this.name}' with ${this.nodes.length} nodes and ${this.edges.length} edges.`}
     get modeStr() {return this.modes[this.mode]}
 }
 
@@ -657,8 +646,8 @@ class Board {
             case "7": this.h.color_selected(); break;
             case "s": download(genFileName(this.h), this.h.serialize()); break;
             case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.update_open() && this.draw()); break;
-            case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
-            case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()}; break;
+            case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()} break;
+            case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()} break;
             case "w": this.h.walk_selected(true); break;
             case "W": this.h.walk_selected(false); break;
             case "c": this.only_outgoing = !this.only_outgoing; break;
@@ -680,7 +669,7 @@ class Board {
                             else this.h.move(0, -1, this.c); break;
             case "ArrowDown": if (e.shiftKey) {this.h = this.hs[mod(this.hs.indexOf(this.h) + 1, this.hs.length)]; this.h.restore(this.c); this.update_open()}
                             else this.h.move(0, 1, this.c); break;
-            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]}; this.update_open()}
+            case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]} this.update_open()}
                             else this.h.move(-1, 0, this.c); break;
             case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.h.focus(0, 0, this.c)}
                             else this.h.move(1, 0, this.c); break;
@@ -748,15 +737,15 @@ class Board {
     }
 
     visible() {
-        let ns = [], es = [];
+        let ns, es;
 
         if (this.h.selected.length && (this.only_incoming || this.only_outgoing)) {
             let match = (this.only_incoming && this.only_outgoing) ? (i => e => edgeEq(e.src.id, i.id) || edgeEq(e.dst.id, i.id)):
                 this.only_outgoing ? i => e => edgeEq(e.src.id, i.id) : i => e => edgeEq(e.dst.id, i.id);
             let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(match(item))]);
-            let shown = dedup_merge(expand(is => is.filter(i => i instanceof Edge).flatMap(e =>
-                    [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial),
-                                    item => JSON.stringify(item.id))
+            let nested_duplicates = Array.from(expand(is => is.filter(i => i instanceof Edge).flatMap(e =>
+                    [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial));
+            let shown = representatives(nested_duplicates.flatMap(x => x), item => JSON.stringify(item.id));
             ns = shown.filter(i => i instanceof Node);
             es = shown.filter(i => i instanceof Edge);
         } else {
