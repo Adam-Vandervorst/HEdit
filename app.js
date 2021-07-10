@@ -792,8 +792,8 @@ window.addEventListener('resize', () => {
 
 let params = new URLSearchParams(window.location.search);
 let param = null, param_h = new H(params.get('name'), params.get('mode'));
+if (window.location.hash) param_h.deserialize(JSON.parse(decodeURI(window.location.hash.slice(1))));
 if (params.has('random_color')) random_color = true;
-if (param = params.get('data')) param_h.deserialize(JSON.parse(decodeURI(param)));
 new Promise((resolve, reject) => {
     if (param = params.get('uri')) fetch(param, {credentials: 'include'})
         .then(response => response.json())
