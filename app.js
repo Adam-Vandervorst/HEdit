@@ -798,7 +798,8 @@ new Promise((resolve, reject) => {
     if (param = params.get('uri')) fetch(param, {credentials: 'include'})
         .then(response => response.json())
         .then(data => param_h.deserialize(data))
-        .finally(() => resolve(board = new Board(param_h)));
+        .then(h => resolve(board = new Board(h)))
+        .catch(reject);
     else resolve(board = new Board(param_h));
 }).then(ins => {
     if (param = params.get('selected')) JSON.parse(param)
@@ -811,4 +812,11 @@ new Promise((resolve, reject) => {
     if (params.has('hide_disconnected')) ins.keypressHandler({key: "d"});
     if (params.has('only_outgoing')) ins.keypressHandler({key: "c"});
     if (params.has('only_incoming')) ins.keypressHandler({key: "C"});
+}).catch(e => {
+    container.innerHTML = e.message;
+    commands.innerHTML = ""
+    history.innerHTML = ""
+    Array.from(welcome_messages).forEach(e =>
+        e.innerHTML = "An error occurred during loading, please check the parameters."
+    )
 })
