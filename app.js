@@ -792,17 +792,18 @@ window.addEventListener('resize', () => {
 
 let params = new URLSearchParams(window.location.search);
 let param = null, param_h = new H(params.get('name'), params.get('mode'));
+let param_uri = params.get('uri'), param_selected = params.get('selected');
 if (window.location.hash) param_h.deserialize(JSON.parse(decodeURI(window.location.hash.slice(1))));
 if (params.has('random_color')) random_color = true;
 new Promise((resolve, reject) => {
-    if (param = params.get('uri')) fetch(param, {credentials: 'include'})
+    if (param_uri) fetch(param_uri, {credentials: 'include'})
         .then(response => response.json())
         .then(data => param_h.deserialize(data))
         .then(h => resolve(board = new Board(h)))
         .catch(reject);
     else resolve(board = new Board(param_h));
 }).then(ins => {
-    if (param = params.get('selected')) JSON.parse(param)
+    if (param_selected) JSON.parse(param_selected)
         .map(i => param_h.nodes.find(n => n.id == i) || param_h.edges.find(e => edgeEq(e.id, i)))
         .filter(x => x).forEach(n => param_h.select(n)) || ins.draw();
     if (params.has('hide_help')) ins.keypressHandler({key: "h"});
