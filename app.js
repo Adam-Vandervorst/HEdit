@@ -94,7 +94,7 @@ function lightness(rgb) {
 }
 
 let _test_canvas = document.createElement('canvas'), _test_ctx = _test_canvas.getContext("2d");
-_test_canvas.width = 1; _test_canvas.height = 1; _test_ctx.font = "15px sans-serif";
+_test_canvas.width = 1; _test_canvas.height = 1; _test_ctx.font = "15px system-ui, sans-serif";
 function colorToRgb(str) {
     // TODO add hsl black
     if (['black', 'rgb(0,0,0)', '#000', '#000000'].includes(str)) return [0, 0, 0];
@@ -209,7 +209,7 @@ class Node {
             ctx.stroke();
         }
 
-        ctx.font = "15px sans-serif";
+        ctx.font = "15px system-ui, sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         if (this.selected) {
