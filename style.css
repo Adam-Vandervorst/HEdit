@@ -2,7 +2,6 @@
     --background-color: #faf9f8;
     --medium-color: #aab;
     --contrast-color: #333;
-    --highlight-color: #f99;
     --contrast-text: rgb(15, 15, 15);
     --faint-text: #778;
     font-size: calc(10px + (16 - 10) * ((100vh - 370px) / (1000 - 370)));
@@ -13,7 +12,6 @@ head.dark-mode + body {
     --background-color: #222222;
     --medium-color: #404044;
     --contrast-color: #ccc;
-    --highlight-color: #811;
     --contrast-text: rgb(240, 240, 240);
     --faint-text: #666;
 }
@@ -22,6 +20,7 @@ body {
     margin: 0;
     overflow: hidden;
     font-family: system-ui, sans-serif;
+    background-color: var(--background-color);
 }
 
 .welcome {
