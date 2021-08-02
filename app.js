@@ -783,21 +783,23 @@ class Board {
     }
 }
 
-let colors = [[243,195,0],[135,86,146],[243,132,0],[95,143,189],[190,0,50],[222,194,95],[132,132,130],[1,136,86],[189,110,136],[1,103,165],[198,117,98],[96,78,151],[246,166,0],[179,68,108],[220,211,0],[136,45,23],[141,182,0],[101,69,34],[226,88,34],[43,61,38]]
-let default_node_color = [16,16,16], default_edge_color = [136,136,136], default_edge_color_alt = [135,135,135];
-let container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
-let board, random_color = false;
-
 window.addEventListener('resize', () => {
     board.resetCanvas();
     board.keypressHandler({key: " "});
 });
 
+let colors = [[243,195,0],[135,86,146],[243,132,0],[95,143,189],[190,0,50],[222,194,95],[132,132,130],[1,136,86],[189,110,136],[1,103,165],[198,117,98],[96,78,151],[246,166,0],[179,68,108],[220,211,0],[136,45,23],[141,182,0],[101,69,34],[226,88,34],[43,61,38]]
+let default_node_color = [16,16,16], default_edge_color = [136,136,136], default_edge_color_alt = [135,135,135];
+let container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
+let board, random_color = false;
+
 let params = new URLSearchParams(window.location.search);
-let param = null, param_h = new H(params.get('name'), params.get('mode'));
-let param_uri = params.get('uri'), param_selected = params.get('selected');
+let param_h = new H(params.get('name'), params.get('mode')), param_uri = params.get('uri'), param_selected = params.get('selected');
+
 if (window.location.hash) param_h.deserialize(JSON.parse(decodeURI(window.location.hash.slice(1))));
 if (params.has('random_color')) random_color = true;
+if (params.has('dark_theme')) cookieStore.set({name: 'theme', sameSite: 'none', domain: domain_name, value: document.head.classList.toggle('dark-mode') ? 'dark' : 'light'});
+
 new Promise((resolve, reject) => {
     if (param_uri) fetch(param_uri, {credentials: 'include'})
         .then(response => response.json())

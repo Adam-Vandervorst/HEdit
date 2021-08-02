@@ -6,10 +6,13 @@
 	<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
 	<link rel="stylesheet" href="style.css">
     <script>
-        cookieStore.get("theme")
+        const get_domain_name = hn => hn.substring(hn.lastIndexOf('.', hn.lastIndexOf('.') - 1) + 1)
+        const domain_name = get_domain_name(window.location.hostname)
+
+        cookieStore.get('theme')
             .then(c => c.value)
-            .catch(e => window.matchMedia("(prefers-color-scheme: dark)").matches && "dark")
-            .then(v => (v == "dark") && document.head.classList.toggle("dark-mode"))
+            .catch(e => window.matchMedia('(prefers-color-scheme: dark)').matches && 'dark')
+            .then(v => (v == 'dark') && document.head.classList.toggle('dark-mode'))
     </script>
 </head>
 <body>
