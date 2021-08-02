@@ -1,7 +1,21 @@
 :root {
+    --background-color: #faf9f8;
+    --medium-color: #aab;
+    --contrast-color: #333;
+    --highlight-color: #f99;
+    --contrast-text: rgb(15, 15, 15);
+    --faint-text: #778;
+    font-size: calc(10px + (16 - 10) * ((100vh - 370px) / (1000 - 370)));
+    font-family: system-ui, sans-serif;
+}
+
+head.dark-mode + body {
     --background-color: #222222;
-    --text-color: #6679;
-    font-size: 1.5vh;
+    --medium-color: #404044;
+    --contrast-color: #ccc;
+    --highlight-color: #811;
+    --contrast-text: rgb(240, 240, 240);
+    --faint-text: #666;
 }
 
 body {
@@ -18,7 +32,7 @@ body {
     position: relative;
     top: 45vh;
     height: 0;
-    color: #bbb;
+    color: var(--faint-text);
     animation: fadeout 10s forwards;
 }
 
@@ -66,7 +80,7 @@ table tr th {
     text-align: left;
     padding-top: .5em;
     padding-left: 3ch;
-    color: var(--text-color);
+    color: var(--contrast-text);
 }
 
 table tr :first-child:not(th) {
@@ -77,7 +91,7 @@ table tr :first-child:not(th) {
 table tr td {
     font-size: .8rem;
     line-height: 1.4em;
-    color: var(--text-color);
+    color: var(--contrast-text);
 }
 
 table tr td div {
@@ -100,7 +114,7 @@ ul {
 
 ul li {
     font-size: .8rem;
-    color: var(--text-color);
+    color: var(--contrast-text);
 }
 
 ul .selected {

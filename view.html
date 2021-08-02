@@ -5,6 +5,12 @@
     <meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
 	<link rel="stylesheet" href="style.css">
+    <script>
+        cookieStore.get("theme")
+            .then(c => c.value)
+            .catch(e => window.matchMedia("(prefers-color-scheme: dark)").matches && "dark")
+            .then(v => (v == "dark") && document.head.classList.toggle("dark-mode"))
+    </script>
 </head>
 <body>
     <div class="touch welcome">Hold to create a node. Tap a node to select it.</div>
