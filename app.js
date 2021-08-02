@@ -75,6 +75,10 @@ function remove(xs, y) {
     return true;
 }
 
+function arrayEq(xs, ys) {
+    return xs.every((x, i) => x == ys[i])
+}
+
 function mod(x, m) {
     return (x % m + m) % m;
 }
@@ -105,13 +109,8 @@ function colorToRgb(str) {
     return _test_ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)
 }
 
-function rgbToHex(rgb) {
-    return '#' + Array.from(rgb).map(x => Math.min(Math.round(x), 255).toString(16).padStart(2, '0')).join('');
-}
-
-function hexToRgb(hex) {
-    let bigint = parseInt(hex[0] == '#' ? hex.substring(1) : hex, 16);
-    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
+function formatRgb(rgb) {
+    return `rgb(${rgb.join(',')})`
 }
 
 function randomColor() {
@@ -148,11 +147,6 @@ function edgeContains(id, item) {
     if (edgeEq(id, item)) return true;
     if (Array.isArray(id)) return edgeContains(id[0], item) || edgeContains(id[1], item);
     return false;
-}
-
-function edgeConvert(eid) {
-    if (isNaN(eid)) return [edgeConvert(eid['src']), edgeConvert(eid['dst'])];
-    return eid;
 }
 
 function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isArray(x) ? x.length : x)) {
@@ -201,7 +195,7 @@ class Node {
             this.x - this.width/2, this.y - b*this.height/2,
             this.x - this.width/2, this.y);    
         ctx.closePath();
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = formatRgb(this.color);
         ctx.fill();
         if (this.selected) {
             ctx.lineWidth = 4;
@@ -218,7 +212,7 @@ class Node {
             ctx.fillStyle = "#001";
             ctx.fillText(this.name, this.x, this.y);
         } else {
-            ctx.fillStyle = "#bbb";
+            ctx.fillStyle = "#ccc";
             ctx.fillText(this.display_name, this.x, this.y);
         }
     }
@@ -301,7 +295,7 @@ class Edge {
         ctx.lineTo(this.dst.x + sm, this.dst.y + cm);
         ctx.lineTo(this.dst.x, this.dst.y);
         ctx.closePath();
-        ctx.fillStyle = this.color;
+        ctx.fillStyle = formatRgb(this.color);
         ctx.fill();
 
         if (this.selected) { // inside
@@ -320,7 +314,7 @@ class Edge {
             ctx.arc(this.x, this.y, this.radius/2, this.θ + (i/n)*Math.PI, this.θ + ((i + 1)/n)*Math.PI);
             ctx.lineTo(this.x, this.y);
             ctx.closePath();
-            ctx.fillStyle = rgbToHex(c);
+            ctx.fillStyle = formatRgb(c);
             ctx.fill();
         })
     }
@@ -332,9 +326,7 @@ class Edge {
     get color() {
         let o = this.θ > 0, n = this.colors.length;
         if (n == 0) return o ? default_edge_color : default_edge_color_alt;
-        return rgbToHex(this.colors.reduce((ct, c) =>
-                [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o]
-        ))
+        return this.colors.reduce((ct, c) => [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o])
     }
 
     serialize() {
@@ -400,10 +392,8 @@ class H {
     color_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
-        let new_color_str = prompt("Enter a CSS color for the selection");
-        let new_color_rgb = colorToRgb(new_color_str);
-        if (new_color_rgb == null) return console.log("invalid CSS color");
-        let new_color = rgbToHex(new_color_rgb);
+        let new_color = colorToRgb(prompt("Enter a CSS color for the selection"));
+        if (new_color == null) return console.log("invalid CSS color");
         let step = {do: () => nodes_atm.forEach(n => n.color = new_color),
                     undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
                     str: `Color ${nodes_atm.map(show).join(', ')} ${new_color_str}`}
@@ -414,7 +404,7 @@ class H {
     recolor_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
-        let new_colors = nodes_atm.map(_ => rgbToHex(randomColor()))
+        let new_colors = nodes_atm.map(_ => randomColor())
         let step = {do: () => nodes_atm.forEach((n, i) => n.color = new_colors[i]),
                     undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
                     str: `Recolor ${nodes_atm.map(show).join(', ')}`}
@@ -538,7 +528,7 @@ class H {
         return JSON.stringify({
             name: this.name,
             mode: this.modeStr,
-            version: 2,
+            version: 3,
             data: this.nodes.map(n => n.serialize()),
             conn: this.edges.map(e => e.serialize())
         });
@@ -548,8 +538,21 @@ class H {
         if (!('conn' in obj && 'data' in obj))
             throw Error("'conn' and 'data' are necessary for deserialization.");
 
-        if ((obj.version|0) < 2)
-            obj.conn = obj.conn.map(edgeConvert);
+        if ((obj.version|0) < 2) {
+            let edge_convert = (eid) => {
+                if (isNaN(eid)) return [edge_convert(eid['src']), edge_convert(eid['dst'])];
+                return eid;
+            }
+            obj.conn = obj.conn.map(edge_convert);
+        }
+
+        if ((obj.version|0) < 3) {
+            let color_convert = hex => {
+                let bigint = parseInt(hex[0] == '#' ? hex.substring(1) : hex, 16);
+                return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255]
+            }
+            obj.data = obj.data.map(n => ({...n, color: n.color && color_convert(n.color)}));
+        }
 
         obj.name = obj.name || "Unnamed";
         obj.mode = this.modes.includes(obj.mode) ? obj.mode : this.modes[0];
@@ -560,7 +563,7 @@ class H {
         let ser = this.deserializable(obj);
         this.name = ser.name;
         this.mode = this.modes.indexOf(ser.mode);
-        this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color && '#' + d.color));
+        this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color));
         this.edges = [];
         while (ser.conn.length)
             ser.conn = ser.conn.filter(d => {
@@ -600,7 +603,7 @@ class Board {
             x: e.x - this.h.dx, y: e.y - this.h.dy,
             alt: window.performance.now() - this.touch.start_t > 300 || e.button === 2,
             static: Math.hypot(this.touch.x - e.x + this.h.dx, this.touch.y - e.y + this.h.dy) < 5,
-            hit_color: rgbToHex(this.c.getImageData(e.x*this.sx|0, e.y*this.sy|0, 1, 1).data.slice(0, 3))
+            hit_color: this.c.getImageData(e.x*this.sx|0, e.y*this.sy|0, 1, 1).data.slice(0, 3)
         }; this.handleInteraction()}}, false)
         this.canvas.addEventListener("touchstart", e => {let t = e.changedTouches[0]; this.touch = {
             x: t.clientX - this.h.dx, y: t.clientY  - this.h.dy,
@@ -610,7 +613,7 @@ class Board {
             x: t.clientX - this.h.dx, y: t.clientY - this.h.dy,
             alt: window.performance.now() - this.touch.start_t > 300,
             static: Math.hypot(this.touch.x - t.clientX + this.h.dx, this.touch.y - t.clientY + this.h.dy) < 5,
-            hit_color: rgbToHex(this.c.getImageData(t.clientX*this.sx|0, t.clientY*this.sy|0, 1, 1).data.slice(0, 3))
+            hit_color: this.c.getImageData(t.clientX*this.sx|0, t.clientY*this.sy|0, 1, 1).data.slice(0, 3)
         }; this.handleInteraction()}, {passive: true});
 
         this.canvas.addEventListener('contextmenu', e => e.preventDefault(), false)
@@ -684,7 +687,7 @@ class Board {
     handleInteraction() {
         let [vns, ves] = this.visible();
         let on_edge = ves.find(e => dist(e, this.touch) <= e.radius/2
-                                || (e.is_interior(this.touch) && e.color === this.touch.hit_color));
+                                || (e.is_interior(this.touch) && arrayEq(e.color, this.touch.hit_color)));
         let on_node = vns.find(n => n.is_interior(this.touch));
 
         if (this.touch.static) {
@@ -733,7 +736,7 @@ class Board {
 
     propagate_colors() {
         this.h.edges.forEach(e => e.colors.length = 0);
-        this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(hexToRgb(e.src.color)))
+        this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color))
     }
 
     visible() {
@@ -780,8 +783,8 @@ class Board {
     }
 }
 
-let colors = ['#F3C300', '#875692', '#F38400', '#5f8fbd', '#BE0032', '#dec25f', '#848482', '#018856', '#bd6e88', '#0167A5', '#c67562', '#604E97', '#F6A600', '#B3446C', '#DCD300', '#882D17', '#8DB600', '#654522', '#E25822', '#2B3D26']
-let default_node_color = '#101010', default_edge_color = '#888888', default_edge_color_alt = rgbToHex(hexToRgb(default_edge_color).map(c => c > 0 ? c - 1 : 1));
+let colors = [[243,195,0],[135,86,146],[243,132,0],[95,143,189],[190,0,50],[222,194,95],[132,132,130],[1,136,86],[189,110,136],[1,103,165],[198,117,98],[96,78,151],[246,166,0],[179,68,108],[220,211,0],[136,45,23],[141,182,0],[101,69,34],[226,88,34],[43,61,38]]
+let default_node_color = [16,16,16], default_edge_color = [136,136,136], default_edge_color_alt = [135,135,135];
 let container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
 let board, random_color = false;
 
