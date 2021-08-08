@@ -161,13 +161,14 @@ class HDict(UserDict):
         return type_1, type_2, type_3
 
     @allow_in('property_graph', 'edge_colored_graph')
-    def synthesize_structure(self, type_1, type_2, type_3):
+    def synthesize_structure(self, type_1, type_2, type_3, custom_name=None):
         """
         Uses the node types from `node_types` to interpret type 3 nodes as items.
         A dataclass is returned with outgoing type 2 nodes as property names and type 1 or type 3 nodes as values.
+        A custom name for this dataclass can be provide via `custom_name`.
         """
         from dataclasses import field, make_dataclass
-        name = f"{self.get('name', '')}Item"
+        name = custom_name or f"{self.get('name', '')}Item"
         fs = [('id', 'int'), ('data', 'str')]
 
         for i, data in self.get_info(type_2, 'id', 'data'):
