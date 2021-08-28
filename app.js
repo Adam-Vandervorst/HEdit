@@ -238,7 +238,7 @@ class Node {
         let base = {id: this.id, data: this.data},
             position = {x: Math.round(this.x), y: Math.round(this.y)};
         if (this.color == default_node_color) return {...base, ...position};
-        else return {...base, color: this.color.substr(1), ...position};
+        else return {...base, color: this.color, ...position};
     }
 }
 
