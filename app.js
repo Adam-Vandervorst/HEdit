@@ -392,8 +392,9 @@ class H {
     color_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
-        let new_color = colorToRgb(prompt("Enter a CSS color for the selection"));
-        if (new_color == null) return console.log("invalid CSS color");
+        let new_color_str = prompt("Enter a CSS color for the selection");
+        let new_color = colorToRgb(new_color_str);
+        if (new_color == null) return console.log(`'${new_color_str}' could not be converted to RGB`);
         let step = {do: () => nodes_atm.forEach(n => n.color = new_color),
                     undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
                     str: `Color ${nodes_atm.map(show).join(', ')} ${new_color_str}`}
