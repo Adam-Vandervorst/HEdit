@@ -106,7 +106,7 @@ function colorToRgb(str) {
     _test_ctx.fillStyle = str;
     if (_test_ctx.fillStyle === "#000000" || str == null) return null;
     _test_ctx.fillRect(0, 0, 1, 1);
-    return _test_ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)
+    return Array.from(_test_ctx.getImageData(0, 0, 1, 1).data.slice(0, 3))
 }
 
 function formatRgb(rgb) {
