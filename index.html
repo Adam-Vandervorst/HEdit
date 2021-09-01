@@ -8,6 +8,10 @@
     <link rel="manifest" href="manifest.json">
 	<link rel="stylesheet" href="style.css">
     <script>
+        if ('serviceWorker' in navigator)
+            navigator.serviceWorker.register('/service_worker.js');
+    </script>
+    <script>
         const get_domain_name = hn => hn.substring(hn.lastIndexOf('.', hn.lastIndexOf('.') - 1) + 1)
         const domain_name = get_domain_name(window.location.hostname)
 

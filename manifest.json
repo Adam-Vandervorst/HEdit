@@ -1,7 +1,6 @@
 {
   "name": "H-Edit",
-  "short_name": "H-Edit",
-  "description": "An editor for H's, T's, and (rich) graphs.",
+  "description": "Editor for H's, T's, and (rich) graphs.",
   "icons": [
     {
       "src": "hedit_icon.png",
@@ -9,8 +8,9 @@
       "type": "image/png"
     }
   ],
-  "start_url": "index.html",
-  "display": "fullscreen",
+  "scope": "/",
+  "start_url": "/",
+  "display": "standalone",
   "theme_color": "#222222",
   "background_color": "#222222"
 }
