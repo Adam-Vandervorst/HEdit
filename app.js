@@ -134,13 +134,8 @@ function onSameSide(a, b, c, d) {
     return l*m >= 0
 }
 
-function edgeEq(id1, id2) {
-    if (Array.isArray(id1) && Array.isArray(id2)) return edgeEq(id1[0], id2[0]) && edgeEq(id1[1], id2[1]);
-    else return id1 === id2;
-}
-
 function edgeContains(id, item) {
-    if (edgeEq(id, item)) return true;
+    if (JSON.stringify(id) == JSON.stringify(item)) return true;
     if (Array.isArray(id)) return edgeContains(id[0], item) || edgeContains(id[1], item);
     return false;
 }
@@ -167,6 +162,11 @@ class Node {
 
     toString() {
         return JSON.stringify(this.id)
+    }
+
+    equals(other) {
+        if (other instanceof Node) return this.id == other.id
+        else return false
     }
 
     is_interior(point) {
@@ -248,6 +248,11 @@ class Edge {
         this.name = `(${src.name}, ${dst.name})`;
         this.src = src; this.dst = dst;
         this.colors = [];
+    }
+
+    equals(other) {
+        if (other instanceof Edge) return this.src.equals(other.src) && this.dst.equals(other.dst)
+        else return false
     }
 
     toString() {
@@ -571,14 +576,19 @@ class H {
         this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color));
         this.edges = [];
         while (ser.conn.length)
-            ser.conn = ser.conn.filter(d => {
-                let src = this.nodes.find(n => d[0] === n.id) || this.edges.find(e => edgeEq(d[0], e.id));
-                let dst = this.nodes.find(n => d[1] === n.id) || this.edges.find(e => edgeEq(d[1], e.id));
-                if (src && dst) return this.edges.push(new Edge(src, dst)) && false;
-                return true;
+            ser.conn = ser.conn.filter(([src_id, dst_id]) => {
+                let src = this.findItem(src_id), dst = this.findItem(dst_id);
+                if (!src || !dst) return true
+                this.edges.push(new Edge(src, dst))
+                return false;
             });
         this.node_count = Math.max(...ser.data.map(d => d.id)) + 1;
         return this;
+    }
+
+    findItem(id) {
+        let s = JSON.stringify(id);
+        return this.nodes.find(n => s == n) || this.edges.find(e => s == e)
     }
 
     get modeStr() {return this.modes[this.mode]}
@@ -748,8 +758,8 @@ class Board {
         let ns, es;
 
         if (this.h.selected.length && (this.only_incoming || this.only_outgoing)) {
-            let match = (this.only_incoming && this.only_outgoing) ? (i => e => edgeEq(e.src.id, i.id) || edgeEq(e.dst.id, i.id)):
-                this.only_outgoing ? i => e => edgeEq(e.src.id, i.id) : i => e => edgeEq(e.dst.id, i.id);
+            let match = (this.only_incoming && this.only_outgoing) ? (i => e => e.src.equals(i) || e.dst.equals(i)) :
+                this.only_outgoing ? i => e => e.src.equals(i) : i => e => e.dst.equals(i);
             let initial = this.h.selected.flatMap(item => [item, ...this.h.edges.filter(match(item))]);
             let nested_duplicates = Array.from(expand(is => is.filter(i => i instanceof Edge).flatMap(e =>
                     [e.src, e.dst].filter(edgep => !is.includes(edgep))), initial));
@@ -814,7 +824,7 @@ new Promise((resolve, reject) => {
     else resolve(board = new Board(param_h));
 }).then(ins => {
     if (param_selected) JSON.parse(param_selected)
-        .map(i => param_h.nodes.find(n => n.id == i) || param_h.edges.find(e => edgeEq(e.id, i)))
+        .map(i => param_h.findItem(i))
         .filter(x => x).forEach(n => param_h.select(n)) || ins.draw();
     if (params.has('hide_help')) ins.keypressHandler({key: "h"});
     if (params.has('show_history')) ins.keypressHandler({key: "H"});
