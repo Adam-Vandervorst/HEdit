@@ -134,10 +134,18 @@ function onSameSide(a, b, c, d) {
     return l*m >= 0
 }
 
-function edgeContains(id, item) {
-    if (JSON.stringify(id) == JSON.stringify(item)) return true;
-    if (Array.isArray(id)) return edgeContains(id[0], item) || edgeContains(id[1], item);
-    return false;
+function* topological_levels(adj) {
+    let wave = [], inv = {}, e, c
+    for (e in adj) inv[e] = 0;
+    for (e in adj) for (c of adj[e]) ++inv[c]
+    do {
+        for (e in inv) if (inv[e] == 0) wave.push(e)
+        yield wave.slice()
+        while (e = wave.pop()) {
+            delete inv[e]
+            for (c of adj[e]) --inv[c]
+        }
+    } while (Object.entries(inv).length)
 }
 
 function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isArray(x) ? x.length : x)) {
@@ -577,20 +585,16 @@ class H {
         this.edges = [];
         while (ser.conn.length)
             ser.conn = ser.conn.filter(([src_id, dst_id]) => {
-                let src = this.findItem(src_id), dst = this.findItem(dst_id);
+                let src = this.itemDict[JSON.stringify(src_id)], dst = this.itemDict[JSON.stringify(dst_id)]
                 if (!src || !dst) return true
                 this.edges.push(new Edge(src, dst))
-                return false;
+                return false
             });
         this.node_count = Math.max(...ser.data.map(d => d.id)) + 1;
         return this;
     }
 
-    findItem(id) {
-        let s = JSON.stringify(id);
-        return this.nodes.find(n => s == n) || this.edges.find(e => s == e)
-    }
-
+    get itemDict() {return Object.fromEntries(this.nodes.concat(this.edges).map(i => [i, i]))}
     get modeStr() {return this.modes[this.mode]}
 }
 
@@ -778,7 +782,9 @@ class Board {
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
         ns.sort((x, y) => x.id - y.id);
-        es.sort((x, y) => edgeContains(y.id, x.id) - edgeContains(x.id, y.id));
+        let d = this.h.itemDict // temporary, add automatic buffering
+        let nb_map = Object.fromEntries(es.map(e => [e, [e.src, e.dst].filter(c => c instanceof Edge)]))
+        es = Array.from(topological_levels(nb_map)).flatMap(l => l.map(k => d[k]).sort((x, y) => es.indexOf(y) - es.indexOf(x)))
         return [ns, es]
     }
 
@@ -824,7 +830,7 @@ new Promise((resolve, reject) => {
     else resolve(board = new Board(param_h));
 }).then(ins => {
     if (param_selected) JSON.parse(param_selected)
-        .map(i => param_h.findItem(i))
+        .map(i => param_h.itemDict[i])
         .filter(x => x).forEach(n => param_h.select(n)) || ins.draw();
     if (params.has('hide_help')) ins.keypressHandler({key: "h"});
     if (params.has('show_history')) ins.keypressHandler({key: "H"});
