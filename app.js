@@ -356,8 +356,8 @@ class H {
         this.deserialize = this.deserialize.bind(this);
         this.name = name || "New";
         this.dx = 0; this.dy = 0;
-        this.node_count = 0;
         this.nodes = []; this.edges = [];
+        this.next_node_id = 0; this.invalid = false;
         this.buffer = []; this.history = []; this.selected = [];
         this.modes = ['H', 'T', 'property_graph', 'edge_colored_graph', 'graph']
         this.mode = mode == null || !this.modes.includes(mode) ? 1 : this.modes.indexOf(mode);
@@ -371,14 +371,14 @@ class H {
     loosen() {this.mode = Math.max(this.mode - 1, 0)}
     redo() {if (this.buffer.length) {let step = this.buffer.pop(); step.do(); this.history.push(step)}}
     undo() {if (this.history.length) {let step = this.history.pop(); step.undo(); this.buffer.push(step)}}
+    exec(step) {step.do(); this.history.push(step); this.invalid ||= step.invalidate}
 
     spawnNode(p) {
-        let new_node = new Node(p, this.name + this.node_count, this.node_count);
-        let step = {do: () => this.nodes.push(new_node),
-                    undo: () => remove(this.nodes, new_node),
-                    str: `Spawn node '${new_node.name}' at ${p.x}, ${p.y}`}
-        step.do(); this.node_count++;
-        this.history.push(step);
+        let new_node = new Node(p, this.name + this.next_node_id, this.next_node_id);
+        this.exec({do: () => {this.next_node_id++; this.nodes.push(new_node)},
+                   undo: () => remove(this.nodes, new_node),
+                   str: `Spawn node '${new_node.name}' at ${p.x}, ${p.y}`,
+                   invalidate: true})
     }
 
     delete_selected() {
@@ -388,22 +388,20 @@ class H {
             to_be_deleted.forEach(i => this.edges.forEach(e => (e.dst === i || e.src === i) && to_be_deleted.add(e)));
         }
 
-        let step = {do: () => to_be_deleted.forEach(i => {remove(this.selected, i); i instanceof Edge ? remove(this.edges, i) : remove(this.nodes, i)}),
-                    undo: () => to_be_deleted.forEach(i => i instanceof Edge ? this.edges.push(i) : this.nodes.push(i)),
-                    str: `Delete ${[...to_be_deleted].join(', ')}`}
-        step.do();
-        this.history.push(step);
+        this.exec({do: () => to_be_deleted.forEach(i => {remove(this.selected, i); i instanceof Edge ? remove(this.edges, i) : remove(this.nodes, i)}),
+                   undo: () => to_be_deleted.forEach(i => i instanceof Edge ? this.edges.push(i) : this.nodes.push(i)),
+                   str: `Delete ${[...to_be_deleted].join(', ')}`,
+                   invalidate: true})
     }
 
     rename_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_names = nodes_atm.map(n => n.name);
         let new_names = nodes_atm.map(n => prompt("Rename " + n.name) || n.name)
-        let step = {do: () => nodes_atm.forEach((n, i) => n.name = new_names[i]),
-                    undo: () => nodes_atm.forEach((n, i) => n.name = old_names[i]),
-                    str: `Rename ${nodes_atm.join(', ')}`}
-        step.do();
-        this.history.push(step);
+        this.exec({do: () => nodes_atm.forEach((n, i) => n.name = new_names[i]),
+                   undo: () => nodes_atm.forEach((n, i) => n.name = old_names[i]),
+                   str: `Rename ${nodes_atm.join(', ')}`,
+                   invalidate: false})
     }
 
     color_selected() {
@@ -412,22 +410,20 @@ class H {
         let new_color_str = prompt("Enter a CSS color for the selection");
         let new_color = colorToRgb(new_color_str);
         if (new_color == null) return console.log(`'${new_color_str}' could not be converted to RGB`);
-        let step = {do: () => nodes_atm.forEach(n => n.color = new_color),
-                    undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
-                    str: `Color ${nodes_atm.join(', ')} ${new_color_str}`}
-        step.do()
-        this.history.push(step);
+        this.exec({do: () => nodes_atm.forEach(n => n.color = new_color),
+                   undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
+                   str: `Color ${nodes_atm.join(', ')} ${new_color_str}`,
+                   invalidate: false})
     }
 
     recolor_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node);
         let old_colors = nodes_atm.map(n => n.color);
         let new_colors = nodes_atm.map(_ => randomColor())
-        let step = {do: () => nodes_atm.forEach((n, i) => n.color = new_colors[i]),
-                    undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
-                    str: `Recolor ${nodes_atm.join(', ')}`}
-        step.do()
-        this.history.push(step);
+        this.exec({do: () => nodes_atm.forEach((n, i) => n.color = new_colors[i]),
+                   undo: () => nodes_atm.forEach((n, i) => n.color = old_colors[i]),
+                   str: `Recolor ${nodes_atm.join(', ')}`,
+                   invalidate: false})
     }
 
     move_selected() {
@@ -436,11 +432,10 @@ class H {
         return (new_point, node_edge) => {
             if (node_edge) return;
             let [dx, dy] = [new_point.x - mx, new_point.y - my];
-            let step = {do: () => nodes_atm.forEach(n => {n.x += dx; n.y += dy}),
-                        undo: () => nodes_atm.forEach(n => {n.x -= dx; n.y -= dy}),
-                        str: `Move ${nodes_atm.join(', ')}`};
-            step.do();
-            this.history.push(step);
+            this.exec({do: () => nodes_atm.forEach(n => {n.x += dx; n.y += dy}),
+                       undo: () => nodes_atm.forEach(n => {n.x -= dx; n.y -= dy}),
+                       str: `Move ${nodes_atm.join(', ')}`,
+                       invalidate: false})
         }
     }
 
@@ -453,11 +448,10 @@ class H {
         }))
         return (new_point, node_edge) => {
             if (!node_edge) return;
-            let step = {do: () => referenced.forEach((e, ind) => e[by[ind]] = node_edge),
-                        undo: () => referenced.forEach((e, ind) => e[by[ind]] = to_replace[ind]),
-                        str: `Replaced ${selected_atm.join(', ')} by ${node_edge}`};
-            step.do();
-            this.history.push(step);
+            this.exec({do: () => referenced.forEach((e, ind) => e[by[ind]] = node_edge),
+                       undo: () => referenced.forEach((e, ind) => e[by[ind]] = to_replace[ind]),
+                       str: `Replaced ${selected_atm.join(', ')} by ${node_edge}`,
+                       invalidate: true})
         }
     }
 
@@ -466,11 +460,10 @@ class H {
         let newly_selected = selected_atm.flatMap(item => item instanceof Node ?
             this.edges.filter(e => e[outgoing ? "src" : "dst"] === item) : item[outgoing ? "dst" : "src"])
             .filter((v, i, a) => a.indexOf(v) == i);
-        let step = {do: () => {this.selected.forEach(i => i.selected = false); (this.selected = newly_selected).forEach(i => i.selected = true)},
-                    undo: () => {this.selected.forEach(i => i.selected = false); (this.selected = selected_atm).forEach(i => i.selected = true)},
-                    str: `Walk ${selected_atm.join(', ')} to ${[outgoing ? "outgoing" : "incoming"]} (${newly_selected.join(', ')})`};
-        step.do();
-        this.history.push(step);
+        this.exec({do: () => {this.selected.forEach(i => i.selected = false); (this.selected = newly_selected).forEach(i => i.selected = true)},
+                   undo: () => {this.selected.forEach(i => i.selected = false); (this.selected = selected_atm).forEach(i => i.selected = true)},
+                   str: `Walk ${selected_atm.join(', ')} to ${[outgoing ? "outgoing" : "incoming"]} (${newly_selected.join(', ')})`,
+                   invalidate: false})
     }
 
     connect_selected() {
@@ -478,11 +471,10 @@ class H {
         return (new_point, node_edge) => {
             if (!node_edge) return;
             let edges = selected_atm.filter(i => this.can_connect(i, node_edge)).map(i => new Edge(i, node_edge));
-            let step = {do: () => this.edges.push(...edges),
-                        undo: () => this.edges = this.edges.filter(e => !edges.includes(e)),
-                        str: `Connect ${selected_atm.join(', ')} to ${node_edge}`};
-            step.do();
-            this.history.push(step);
+            this.exec({do: () => this.edges.push(...edges),
+                       undo: () => this.edges = this.edges.filter(e => !edges.includes(e)),
+                       str: `Connect ${selected_atm.join(', ')} to ${node_edge}`,
+                       invalidate: true})
         }
     }
 
@@ -491,11 +483,10 @@ class H {
         return (new_point, node_edge) => {
             if (!node_edge) return;
             let edges = selected_atm.filter(i => this.can_connect(node_edge, i)).map(i => new Edge(node_edge, i));
-            let step = {do: () => this.edges.push(...edges),
-                        undo: () => this.edges = this.edges.filter(e => !edges.includes(e)),
-                        str: `Connect ${node_edge} to ${selected_atm.join(', ')}`};
-            step.do();
-            this.history.push(step);
+            this.exec({do: () => this.edges.push(...edges),
+                       undo: () => this.edges = this.edges.filter(e => !edges.includes(e)),
+                       str: `Connect ${node_edge} to ${selected_atm.join(', ')}`,
+                       invalidate: true})
         }
     }
 
@@ -511,35 +502,34 @@ class H {
     connect(src, dst) {
         if (!this.can_connect(src, dst)) return;
         let new_edge = new Edge(src, dst);
-        let step = {do: () => this.edges.push(new_edge),
-                    undo: () => remove(this.edges, new_edge),
-                    str: `Connect ${src} with ${dst}`}
-        step.do();
-        this.history.push(step);
+        this.exec({do: () => this.edges.push(new_edge),
+                   undo: () => remove(this.edges, new_edge),
+                   str: `Connect ${src} with ${dst}`,
+                   invalidate: true})
     }
 
     select(n) {
         let step = n.selected ? {
             do: () => {remove(this.selected, n); n.selected = false},
             undo: () => {this.selected.push(n); n.selected = true},
-            str: `Deselect ${n}`
+            str: `Deselect ${n}`,
+            invalidate: false
         } : {
             do: () => {this.selected.push(n); n.selected = true},
             undo: () => {remove(this.selected, n); n.selected = false},
-            str: `Select ${n}`
+            str: `Select ${n}`,
+            invalidate: false
         }
-        step.do();
-        this.history.push(step);
+        this.exec(step)
     }
 
     deselect() {
         if (!this.selected.length) return;
         let previously_selected = this.selected.slice();
-        let step = {do: () => {while (this.selected.length) {this.selected.pop().selected = false}},
-                    undo: () => {previously_selected.forEach(i => {i.selected = true; this.selected.push(i)})},
-                    str: `Deselect ${this.selected.join(', ')}`}
-        step.do();
-        this.history.push(step);
+        this.exec({do: () => {while (this.selected.length) {this.selected.pop().selected = false}},
+                   undo: () => {previously_selected.forEach(i => {i.selected = true; this.selected.push(i)})},
+                   str: `Deselect ${this.selected.join(', ')}`,
+                   invalidate: false})
     }
 
     serialize() {
@@ -583,25 +573,33 @@ class H {
         this.mode = this.modes.indexOf(ser.mode);
         this.nodes = ser.data.map(d => new Node(d, d.data, d.id, d.color));
         this.edges = [];
-        while (ser.conn.length)
+        while (ser.conn.length) {
             ser.conn = ser.conn.filter(([src_id, dst_id]) => {
                 let src = this.itemDict[JSON.stringify(src_id)], dst = this.itemDict[JSON.stringify(dst_id)]
                 if (!src || !dst) return true
                 this.edges.push(new Edge(src, dst))
+                this.invalid = true
                 return false
             });
-        this.node_count = Math.max(...ser.data.map(d => d.id)) + 1;
+        }
+        this.next_node_id = Math.max(...ser.data.map(d => d.id)) + 1;
         return this;
     }
 
     get topLevels() {
-        let d = this.itemDict
+        if (!this.invalid && this._topLevels) return this._topLevels
         let nb_map = Object.fromEntries(this.edges.map(e => [e, [e.src, e.dst].filter(c => c instanceof Edge)]));
-        let result = Array.from(topological_levels(nb_map)).map(l => l.map(e => d[e]))
-        return result
+        this._topLevels = Array.from(topological_levels(nb_map)).map(l => l.map(e => this.itemDict[e]))
+        return this._topLevels
     }
 
-    get itemDict() {return Object.fromEntries(this.nodes.concat(this.edges).map(i => [i, i]))}
+    get itemDict() {
+        if (!this.invalid && this._itemDict) return this._itemDict
+        this._itemDict = Object.fromEntries(this.nodes.concat(this.edges).map(i => [i, i]))
+        this._topLevels = null
+        this.invalid = false
+        return this._itemDict
+    }
     get modeStr() {return this.modes[this.mode]}
 }
 
