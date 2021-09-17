@@ -135,17 +135,17 @@ function onSameSide(a, b, c, d) {
 }
 
 function* topological_levels(adj) {
-    let wave = [], inv = {}, e, c
-    for (e in adj) inv[e] = 0;
-    for (e in adj) for (c of adj[e]) ++inv[c]
+    let inc = {}, wave = [], e, c
+    for (e in adj) inc[e] = 0
+    for (e in adj) for (c of adj[e]) ++inc[c]
     do {
-        for (e in inv) if (inv[e] == 0) wave.push(e)
+        for (e in inc) if (inc[e] == 0) wave.push(e)
         yield wave.slice()
         while (e = wave.pop()) {
-            delete inv[e]
-            for (c of adj[e]) --inv[c]
+            delete inc[e]
+            for (c of adj[e]) --inc[c]
         }
-    } while (Object.entries(inv).length)
+    } while (Object.entries(inc).length)
 }
 
 function* expand(f, seed, max_iter=Number.MAX_SAFE_INTEGER, cond=x => (Array.isArray(x) ? x.length : x)) {
@@ -594,6 +594,13 @@ class H {
         return this;
     }
 
+    get topLevels() {
+        let d = this.itemDict
+        let nb_map = Object.fromEntries(this.edges.map(e => [e, [e.src, e.dst].filter(c => c instanceof Edge)]));
+        let result = Array.from(topological_levels(nb_map)).map(l => l.map(e => d[e]))
+        return result
+    }
+
     get itemDict() {return Object.fromEntries(this.nodes.concat(this.edges).map(i => [i, i]))}
     get modeStr() {return this.modes[this.mode]}
 }
@@ -755,7 +762,7 @@ class Board {
 
     propagate_colors() {
         this.h.edges.forEach(e => e.colors.length = 0);
-        this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color))
+        this.h.topLevels.forEach(l => l.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color)))
     }
 
     visible() {
@@ -782,9 +789,7 @@ class Board {
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
         ns.sort((x, y) => x.id - y.id);
-        let d = this.h.itemDict // temporary, add automatic buffering
-        let nb_map = Object.fromEntries(es.map(e => [e, [e.src, e.dst].filter(c => c instanceof Edge)]))
-        es = Array.from(topological_levels(nb_map)).flatMap(l => l.map(k => d[k]).sort((x, y) => es.indexOf(y) - es.indexOf(x)))
+        es = this.h.topLevels.flatMap(l => l.filter(k => es.includes(k)).sort((x, y) => es.indexOf(y) - es.indexOf(x)))
         return [ns, es]
     }
 
@@ -793,14 +798,14 @@ class Board {
         this.c.setTransform(1, 0, 0, 1, 0, 0);
         this.c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.c.restore();
+
         this.propagate_colors();
-
-        if (!history.style.display) this.update_history();
-        if (!information.style.display) this.update_information();
-
         let [vns, ves] = this.visible();
         ves.forEach(e => e.draw(this.c));
         vns.forEach(n => n.draw(this.c));
+
+        if (!history.style.display) this.update_history();
+        if (!information.style.display) this.update_information();
     }
 }
 
