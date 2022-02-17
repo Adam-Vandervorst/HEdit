@@ -118,7 +118,8 @@ function randomColor() {
 
 function middle(...pn) {
     let xs = pn.map(p => p.x), ys = pn.map(p => p.y);
-    return [(Math.max(...xs) + Math.min(...xs))/2, (Math.max(...ys) + Math.min(...ys))/2]
+    return {x: (Math.max(...xs) + Math.min(...xs))/2,
+            y: (Math.max(...ys) + Math.min(...ys))/2}
 }
 
 function dist(p1, p2) {
@@ -366,7 +367,7 @@ class H {
     restore(c) {this.focus(this.dx, this.dy, c)}
     focus(x, y, c) {let t_matrix = c.getTransform(); c.translate(x - t_matrix.e/t_matrix.a, y - t_matrix.f/t_matrix.d); this.dx = x; this.dy = y}
     move(dx, dy, c) {this.dx += 30*dx; this.dy += 30*dy; c.translate(30*dx, 30*dy)}
-    scale(f) {let [x, y] = middle(...this.nodes); this.nodes.forEach(n => {n.x = (n.x - x)*(1+f)+x; n.y = (n.y - y)*(1+f)+y})}
+    scale(f) {let {x, y} = middle(...this.nodes); this.nodes.forEach(n => {n.x = (n.x - x)*(1+f)+x; n.y = (n.y - y)*(1+f)+y})}
     tighten() {this.mode = Math.min(this.mode + 1, this.modes.length - 1)}
     loosen() {this.mode = Math.max(this.mode - 1, 0)}
     redo() {if (this.buffer.length) {let step = this.buffer.pop(); step.do(); this.history.push(step)}}
@@ -428,10 +429,10 @@ class H {
 
     move_selected() {
         let nodes_atm = this.selected.filter(i => i instanceof Node), nn = nodes_atm.length;
-        let [mx, my] = middle(...nodes_atm);
+        let {x, y} = middle(...nodes_atm);
         return (new_point, node_edge) => {
             if (node_edge) return;
-            let [dx, dy] = [new_point.x - mx, new_point.y - my];
+            let [dx, dy] = [new_point.x - x, new_point.y - y];
             this.exec({do: () => nodes_atm.forEach(n => {n.x += dx; n.y += dy}),
                        undo: () => nodes_atm.forEach(n => {n.x -= dx; n.y -= dy}),
                        str: `Move ${nodes_atm.join(', ')}`,
@@ -600,6 +601,7 @@ class H {
         this.invalid = false
         return this._itemDict
     }
+
     get modeStr() {return this.modes[this.mode]}
 }
 
@@ -661,6 +663,11 @@ class Board {
         this.c.scale(devicePixelRatio, devicePixelRatio);
     }
 
+    center(p) {
+        let {x, y} = p || (this.h.nodes.length ? middle(...this.h.nodes) : {x: 0, y: 0});
+        this.h.focus(this.canvas.width/2/this.sx - x, this.canvas.height/2/this.sy - y, this.c)
+    }
+
     keypressHandler(e) {
         switch (e.key) {
             case "0": this.h.delete_selected(); break;
@@ -672,9 +679,9 @@ class Board {
             case "6": this.partial = this.h.tag_selected(); break;
             case "7": this.h.color_selected(); break;
             case "s": download(genFileName(this.h), this.h.serialize()); break;
-            case "l": upload(file => this.hs.push(new H().deserialize(JSON.parse(file.content))) && this.update_open() && this.draw()); break;
-            case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()} break;
-            case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) this.h.focus(this.canvas.width/2 - res.x, this.canvas.height/2 - res.y, this.c) || this.draw()} break;
+            case "l": upload(file => {this.h = new H().deserialize(JSON.parse(file.content)); this.hs.push(this.h); this.update_open(); this.center(); this.draw()}); break;
+            case "f": {let name = prompt("Find node by name"), res = this.h.nodes.find(n => n.name === name); if (res) {this.center(res); this.draw()}} break;
+            case "F": {let sid = prompt("Find node by id"), res = this.h.nodes.find(n => String(n.id) === sid); if (res) {this.center(res); this.draw()}} break;
             case "w": this.h.walk_selected(true); break;
             case "W": this.h.walk_selected(false); break;
             case "c": this.only_outgoing = !this.only_outgoing; break;
@@ -698,9 +705,9 @@ class Board {
                             else this.h.move(0, 1, this.c); break;
             case "ArrowLeft": if (e.shiftKey) {let hi = this.hs.indexOf(this.h); if (hi > 0) {this.hs.splice(hi, 1); this.h = this.hs[hi - 1]} this.update_open()}
                             else this.h.move(-1, 0, this.c); break;
-            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.h.focus(0, 0, this.c)}
+            case "ArrowRight": if (e.shiftKey) {this.h = new H(prompt("Name new H")); this.hs.push(this.h); this.update_open(); this.center()}
                             else this.h.move(1, 0, this.c); break;
-            case " ": let [mx, my] = middle(...this.h.nodes); this.h.focus(this.canvas.width/2/this.sx - mx, this.canvas.height/2/this.sy - my, this.c); break;
+            case " ": this.center(); break;
             case "Escape": {this.partial = null; this.h.deselect()} break;
             default: return;
         }
