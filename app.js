@@ -697,7 +697,7 @@ class Board {
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
             case "g": this.show_gray = !this.show_gray; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
-            case "t": this.color_depth_levels(); break;
+            case "t": this.color_top_levels(); break;
             case "h": toggle_show(commands); break;
             case "H": toggle_show(history); break;
             case "i": toggle_show(information); break;
@@ -774,10 +774,15 @@ class Board {
         })
     }
 
+    color_top_levels() {
+        let top_levels = this.h.topLevels;
+        top_levels.forEach((es, i) => es.forEach(e => e.override_color = interpolate_color(i/(top_levels.length - 1), level_colors)));
+    }
+
     color_depth_levels() {
         let depths = this.h.edges.map(e => e.depth),
             min_depth = Math.min(...depths), max_depth = Math.max(...depths), range = max_depth - min_depth;
-        this.h.edges.forEach((e, i) => e.override_color = interpolate_color((depths[i] - min_depth)/range, level_colors))
+        this.h.edges.forEach((e, i) => e.override_color = interpolate_color((depths[i] - min_depth)/range, level_colors));
     }
 
     propagate_colors() {
