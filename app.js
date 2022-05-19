@@ -614,7 +614,7 @@ class H {
 }
 
 class Board {
-    constructor(start_h) {
+    constructor(start_h, color_mode) {
         this.draw = this.draw.bind(this);
         this.handleInteraction = this.handleInteraction.bind(this);
         this.keypressHandler = this.keypressHandler.bind(this);
@@ -623,6 +623,8 @@ class Board {
         this.resetCanvas();
 
         this.hs = [start_h]; this.h = this.hs[0];
+        this.color_modes = ["propagate", "order", "depth"];
+        this.color_mode = this.color_modes.includes(color_mode) ? this.color_modes.indexOf(color_mode) : 0;
         this.show_gray = true; this.show_disconnected = true;
         this.only_outgoing = false; this.only_incoming = false;
         this.touch = null;
@@ -658,6 +660,7 @@ class Board {
         }
     }
 
+    cycle_color_mode() {this.color_mode = (this.color_mode + 1) % this.color_modes.length}
     get sx() {return this.canvas.width/parseInt(this.canvas.style.width, 10)}
     get sy() {return this.canvas.height/parseInt(this.canvas.style.height, 10)}
 
@@ -697,7 +700,7 @@ class Board {
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
             case "g": this.show_gray = !this.show_gray; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
-            case "t": this.color_top_levels(); break;
+            case "t": this.cycle_color_mode(); break;
             case "h": toggle_show(commands); break;
             case "H": toggle_show(history); break;
             case "i": toggle_show(information); break;
@@ -747,6 +750,7 @@ class Board {
         [
             this.h.name,
             this.h.modeStr,
+            this.colorModeStr,
             this.only_incoming && this.only_outgoing ? "both" : !this.only_incoming && !this.only_outgoing ? "all" :
                 this.only_incoming ? "incoming" : "outgoing",
             this.h.selected.join(', '),
@@ -774,6 +778,11 @@ class Board {
         })
     }
 
+    propagate_colors() {
+        this.h.edges.forEach(e => {e.colors.length = 0; e.override_color = null});
+        this.h.topLevels.forEach(l => l.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color)))
+    }
+
     color_top_levels() {
         let top_levels = this.h.topLevels;
         top_levels.forEach((es, i) => es.forEach(e => e.override_color = interpolate_color(i/(top_levels.length - 1), level_colors)));
@@ -783,11 +792,6 @@ class Board {
         let depths = this.h.edges.map(e => e.depth),
             min_depth = Math.min(...depths), max_depth = Math.max(...depths), range = max_depth - min_depth;
         this.h.edges.forEach((e, i) => e.override_color = interpolate_color((depths[i] - min_depth)/range, level_colors));
-    }
-
-    propagate_colors() {
-        this.h.edges.forEach(e => e.colors.length = 0);
-        this.h.topLevels.forEach(l => l.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color)))
     }
 
     visible() {
@@ -824,7 +828,11 @@ class Board {
         this.c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.c.restore();
 
-        this.propagate_colors();
+        switch (this.color_mode) {
+            case 0: this.propagate_colors(); break;
+            case 1: this.color_top_levels(); break;
+            case 2: this.color_depth_levels(); break;
+        }
         let [vns, ves] = this.visible();
         ves.forEach(e => e.draw(this.c));
         vns.forEach(n => n.draw(this.c));
@@ -832,6 +840,8 @@ class Board {
         if (!history.style.display) this.update_history();
         if (!information.style.display) this.update_information();
     }
+
+    get colorModeStr() {return this.color_modes[this.color_mode]}
 }
 
 window.addEventListener('resize', () => {
@@ -846,7 +856,7 @@ let container = document.getElementById('board'), commands = document.getElement
 let board, random_color = false;
 
 let params = new URLSearchParams(window.location.search);
-let param_h = new H(params.get('name'), params.get('mode')), param_uri = params.get('uri'), param_selected = params.get('selected');
+let param_h = new H(params.get('name'), params.get('mode')), param_uri = params.get('uri'), param_selected = params.get('selected'), param_color_mode = params.get('color_mode');
 
 if (window.location.hash) param_h.deserialize(JSON.parse(decodeURI(window.location.hash.slice(1))));
 if (params.has('random_color')) random_color = true;
@@ -856,9 +866,9 @@ new Promise((resolve, reject) => {
     if (param_uri) fetch(param_uri, {credentials: 'include'})
         .then(response => response.json())
         .then(data => param_h.deserialize(data))
-        .then(h => resolve(board = new Board(h)))
+        .then(h => resolve(board = new Board(h, param_color_mode)))
         .catch(reject);
-    else resolve(board = new Board(param_h));
+    else resolve(board = new Board(param_h, param_color_mode));
 }).then(ins => {
     if (param_selected) JSON.parse(param_selected)
         .map(i => param_h.itemDict[i])
