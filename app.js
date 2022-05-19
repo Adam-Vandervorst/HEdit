@@ -160,6 +160,12 @@ function representatives(a, extract=x => x) {
     return a.filter(e => !features[extract(e)] && (features[extract(e)] = true))
 }
 
+function interpolate_color(f, colors) {
+    let fi = f*(colors.length - 1), ff = Math.floor(fi), fc = Math.ceil(fi);
+    let e = fi - ff, s = 1 - e;
+    let [r1, g1, b1] = colors[ff], [r2, g2, b2] = colors[fc];
+    return [r1*s + r2*e, g1*s + g2*e, b1*s + b2*e]
+}
 
 class Node {
     constructor(point, name, id, color) {
@@ -337,11 +343,13 @@ class Edge {
         })
     }
 
+    get depth() {return Math.max(this.src instanceof Edge ? this.src.depth + 1 : 0, this.dst instanceof Edge ? this.dst.depth + 1 : 0)}
     get id() {return [this.src.id, this.dst.id]}
     get x() {return (this.src.x + this.dst.x - (this.src === this.dst ? 3 : 1)*this.radius*Math.sin(this.θ))/2}
     get y() {return (this.src.y + this.dst.y + (this.src === this.dst ? 3 : 1)*this.radius*Math.cos(this.θ))/2}
     get θ() {return Math.atan2(this.src.y - this.dst.y, this.src.x - this.dst.x)}
     get color() {
+        if (this.override_color) return this.override_color
         let o = this.θ > 0, n = this.colors.length;
         if (n == 0) return o ? default_edge_color : default_edge_color_alt;
         return this.colors.reduce((ct, c) => [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o])
@@ -689,6 +697,7 @@ class Board {
             case "n": this.h.name = prompt("Rename " + this.h.name) || this.h.name; this.update_open(); break;
             case "g": this.show_gray = !this.show_gray; break;
             case "d": this.show_disconnected = !this.show_disconnected; break;
+            case "t": this.color_depth_levels(); break;
             case "h": toggle_show(commands); break;
             case "H": toggle_show(history); break;
             case "i": toggle_show(information); break;
@@ -765,6 +774,12 @@ class Board {
         })
     }
 
+    color_depth_levels() {
+        let depths = this.h.edges.map(e => e.depth),
+            min_depth = Math.min(...depths), max_depth = Math.max(...depths), range = max_depth - min_depth;
+        this.h.edges.forEach((e, i) => e.override_color = interpolate_color((depths[i] - min_depth)/range, level_colors))
+    }
+
     propagate_colors() {
         this.h.edges.forEach(e => e.colors.length = 0);
         this.h.topLevels.forEach(l => l.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color)))
@@ -819,7 +834,8 @@ window.addEventListener('resize', () => {
     board.keypressHandler({key: " "});
 });
 
-let colors = [[243,195,0],[135,86,146],[243,132,0],[95,143,189],[190,0,50],[222,194,95],[132,132,130],[1,136,86],[189,110,136],[1,103,165],[198,117,98],[96,78,151],[246,166,0],[179,68,108],[220,211,0],[136,45,23],[141,182,0],[101,69,34],[226,88,34],[43,61,38]]
+let colors = [[243,195,0],[135,86,146],[243,132,0],[95,143,189],[190,0,50],[222,194,95],[132,132,130],[1,136,86],[189,110,136],[1,103,165],[198,117,98],[96,78,151],[246,166,0],[179,68,108],[220,211,0],[136,45,23],[141,182,0],[101,69,34],[226,88,34],[43,61,38]];
+let level_colors = [[0,32,76],[0,44,106],[14,55,109],[49,68,107],[69,80,107],[86,92,108],[102,104,112],[117,117,117],[132,129,120],[149,143,120],[166,156,117],[184,171,112],[202,185,105],[221,201,95],[240,217,81],[255,233,69]];
 let default_node_color = [16,16,16], default_edge_color = [136,136,136], default_edge_color_alt = [135,135,135];
 let container = document.getElementById('board'), commands = document.getElementById('commands'), history = document.getElementById('history'), information = document.getElementById('information'), open = document.getElementById('open'), welcome_messages = document.getElementsByClassName("welcome");
 let board, random_color = false;
