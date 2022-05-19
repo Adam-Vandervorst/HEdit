@@ -261,8 +261,9 @@ class Edge {
     constructor(src, dst) {
         this.width = 6; this.radius = 20;
         this.name = `(${src.name}, ${dst.name})`;
+        this.incoming = [];
         this.src = src; this.dst = dst;
-        this.colors = [];
+        this.color = this.θ > 0 ? default_edge_color : default_edge_color_alt;
     }
 
     equals(other) {
@@ -331,14 +332,14 @@ class Edge {
             ctx.stroke();
         }
 
-        let n = this.colors.length;
-        this.colors.forEach((c, i) => {
+        let n = this.incoming.length;
+        this.incoming.forEach((e_n, i) => {
             ctx.beginPath();
             ctx.moveTo(this.x, this.y);
             ctx.arc(this.x, this.y, this.radius/2, this.θ + (i/n)*Math.PI, this.θ + ((i + 1)/n)*Math.PI);
             ctx.lineTo(this.x, this.y);
             ctx.closePath();
-            ctx.fillStyle = formatRgb(c);
+            ctx.fillStyle = formatRgb(e_n.src.color);
             ctx.fill();
         })
     }
@@ -348,12 +349,6 @@ class Edge {
     get x() {return (this.src.x + this.dst.x - (this.src === this.dst ? 3 : 1)*this.radius*Math.sin(this.θ))/2}
     get y() {return (this.src.y + this.dst.y + (this.src === this.dst ? 3 : 1)*this.radius*Math.cos(this.θ))/2}
     get θ() {return Math.atan2(this.src.y - this.dst.y, this.src.x - this.dst.x)}
-    get color() {
-        if (this.override_color) return this.override_color
-        let o = this.θ > 0, n = this.colors.length;
-        if (n == 0) return o ? default_edge_color : default_edge_color_alt;
-        return this.colors.reduce((ct, c) => [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o])
-    }
 
     serialize() {
         return this.id;
@@ -503,7 +498,7 @@ class H {
         if (!src || !dst) return false;
         if (this.mode > 0 && src instanceof Edge) return false; // in anything but an H, edges must start from nodes
         if (this.mode >= 4 && dst instanceof Edge) return false; // in a graph edges must point to nodes
-        if (this.mode == 3 && dst instanceof Edge && dst.colors.length > 0) return false; // in an edge colored graph edges may only have one property
+        if (this.mode == 3 && dst instanceof Edge && dst.incoming.length > 0) return false; // in an edge colored graph edges may only have one property
         if (this.mode >= 2 && dst instanceof Edge && dst.dst instanceof Edge) return false; // in a property graph and an edge colored graph, if an edge points to another edge, that other edge must point to a vertex
         return true;
     }
@@ -623,7 +618,7 @@ class Board {
         this.resetCanvas();
 
         this.hs = [start_h]; this.h = this.hs[0];
-        this.color_modes = ["propagate", "order", "depth"];
+        this.color_modes = ["incoming", "order", "depth"];
         this.color_mode = this.color_modes.includes(color_mode) ? this.color_modes.indexOf(color_mode) : 0;
         this.show_gray = true; this.show_disconnected = true;
         this.only_outgoing = false; this.only_incoming = false;
@@ -756,7 +751,7 @@ class Board {
             this.h.selected.join(', '),
             this.h.nodes.length,
             this.h.edges.length,
-            this.h.edges.filter(e => e.colors.length).length
+            this.h.edges.filter(e => e.incoming.length).length
         ].forEach((v, i) => information.rows[i + 1].cells[1].innerHTML = v)
     }
 
@@ -778,20 +773,29 @@ class Board {
         })
     }
 
-    propagate_colors() {
-        this.h.edges.forEach(e => {e.colors.length = 0; e.override_color = null});
-        this.h.topLevels.forEach(l => l.forEach(e => (e.dst instanceof Edge) && e.dst.colors.push(e.src.color)))
+    update_incoming() {
+        this.h.edges.forEach(e => e.incoming.length = 0);
+        this.h.edges.forEach(e => (e.dst instanceof Edge) && e.dst.incoming.push(e));
+    }
+
+    color_incoming() {
+        this.h.topLevels.forEach(l => l.forEach(e => {
+            let n = e.incoming.length, o = 1.0*(e.θ > 0);
+            if (n == 0) return e.color = o ? default_edge_color : default_edge_color_alt;
+            let cs = e.incoming.map(i => i.src.color)
+            e.color = cs.reduce((ct, c) => [ct[0] + c[0]/n, ct[1] + c[1]/n, ct[2] + c[2]/n], [o, o, o])
+        }))
     }
 
     color_top_levels() {
         let top_levels = this.h.topLevels;
-        top_levels.forEach((es, i) => es.forEach(e => e.override_color = interpolate_color(i/(top_levels.length - 1), level_colors)));
+        top_levels.forEach((es, i) => es.forEach(e => e.color = interpolate_color(i/(top_levels.length - 1), level_colors)));
     }
 
     color_depth_levels() {
         let depths = this.h.edges.map(e => e.depth),
             min_depth = Math.min(...depths), max_depth = Math.max(...depths), range = max_depth - min_depth;
-        this.h.edges.forEach((e, i) => e.override_color = interpolate_color((depths[i] - min_depth)/range, level_colors));
+        this.h.edges.forEach((e, i) => e.color = interpolate_color((depths[i] - min_depth)/range, level_colors));
     }
 
     visible() {
@@ -812,7 +816,7 @@ class Board {
         }
 
         if (!this.show_gray)
-            es = es.filter(e => e.colors.length || this.h.selected.includes(e));
+            es = es.filter(e => e.incoming.length || this.h.selected.includes(e));
 
         if (!this.show_disconnected)
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
@@ -828,11 +832,14 @@ class Board {
         this.c.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.c.restore();
 
+        this.update_incoming()
+
         switch (this.color_mode) {
-            case 0: this.propagate_colors(); break;
+            case 0: this.color_incoming(); break;
             case 1: this.color_top_levels(); break;
             case 2: this.color_depth_levels(); break;
         }
+
         let [vns, ves] = this.visible();
         ves.forEach(e => e.draw(this.c));
         vns.forEach(n => n.draw(this.c));
