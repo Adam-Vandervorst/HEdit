@@ -746,8 +746,11 @@ class Board {
             this.h.name,
             this.h.modeStr,
             this.colorModeStr,
-            this.only_incoming && this.only_outgoing ? "both" : !this.only_incoming && !this.only_outgoing ? "all" :
-                this.only_incoming ? "incoming" : "outgoing",
+            (this.only_incoming && this.only_outgoing ? "both" :
+                !this.only_incoming && !this.only_outgoing ? "all" :
+                this.only_incoming ? "incoming" : "outgoing")
+            + (this.show_gray ? "" : " colored")
+            + (this.show_disconnected ? "" : " connected"),
             this.h.selected.join(', '),
             this.h.nodes.length,
             this.h.edges.length,
@@ -821,7 +824,7 @@ class Board {
         if (!this.show_disconnected)
             ns = ns.filter(n => es.find(e => n === e.src || n === e.dst) || this.h.selected.includes(n));
 
-        ns.sort((x, y) => x.id - y.id);
+        ns.sort((x, y) => (x.selected|0 - y.selected|0) || (x.id - y.id));
         es = this.h.topLevels.flatMap(l => l.filter(k => es.includes(k)).sort((x, y) => es.indexOf(y) - es.indexOf(x)))
         return [ns, es]
     }

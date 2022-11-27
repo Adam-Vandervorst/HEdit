@@ -13,13 +13,7 @@
             navigator.serviceWorker.register('service_worker.js');
     </script>
     <script>
-        const get_domain_name = hn => hn.substring(hn.lastIndexOf('.', hn.lastIndexOf('.') - 1) + 1)
-        const domain_name = get_domain_name(window.location.hostname)
-
-        cookieStore.get('theme')
-            .then(c => c.value)
-            .catch(e => window.matchMedia('(prefers-color-scheme: dark)').matches && 'dark')
-            .then(v => (v == 'dark') && document.head.classList.toggle('dark-mode'))
+        document.head.classList.toggle('dark-mode')
     </script>
 </head>
 <body>
