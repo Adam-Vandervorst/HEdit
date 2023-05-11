@@ -1,5 +1,22 @@
+# H-Edit
+# Copyright (C) 2020  Adam Vandervorst
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-This file provides utilities for handling structures made with H-EDit.
+Source code and editor available at https://github.com/Adam-Vandervorst/HEdit
+
+This file provides utilities for handling structures made with H-Edit.
 Currently, only a quite bare-bones and low-performance class is available, HDict.
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
