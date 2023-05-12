@@ -20,6 +20,8 @@ This file provides utilities for handling structures made with H-Edit.
 Currently, only a quite bare-bones and low-performance class is available, HDict.
 After saving your structure with pressing 'S' in H-Edit, you can load it here with `HDict.load_from_path`.
 In Python console, you can write help(HDict) to view the useful methods, and the README contains links to example projects.
+
+Thanks to Anneline Daggelinckx for helping out with the utility functions in this file!
 """
 import typing
 from collections import UserDict, defaultdict
@@ -118,6 +120,48 @@ class HDict(UserDict):
             if all(any(e == e_ for e_ in self.connected(via_id, direction='outgoing'))
                    for via_id in via_ids):
                 yield dst
+
+    @allow_in('property_graph')
+    def triples(self, s=None, p=None, o=None):
+        """
+        Yields all nodes of triples that unify with the given (s, p, o).
+        When a constraint is None, it is undetermined.
+        When a constraint is a node id, it fixes that axis.
+        If all three axes are fixed, returns a boolean indicating if this triples exists.
+
+        E.g.
+        >>> pg.triples(s=S, o=O)
+        p1, p2, ..., pn
+        >>> pg.triples(p=P)
+        (s1, o1), ... (sn, om)
+
+        :param s: Source/Subject of an edge/triple.
+        :param p: Property of an edge/triple.
+        :param o: Target/Object of an edge/triple.
+        :return: All s, p, or o left undetermined in the input.
+        """
+        if s is None:
+            if p is None:
+                if o is None:
+                    return ((e[0], p, e[1]) for (p, e) in self['conn'] if isinstance(e, tuple))
+                else:
+                    return ((e[0], p) for (p, e) in self['conn'] if isinstance(e, tuple) and e[1] == o)
+            else:
+                if o is None:
+                    return ((e[0], e[1]) for (p_, e) in self['conn'] if isinstance(e, tuple) and p_ == p)
+                else:
+                    return (e[0] for (p_, e) in self['conn'] if isinstance(e, tuple) and e[1] == o and p_ == p)
+        else:
+            if p is None:
+                if o is None:
+                    return ((p, e[1]) for (p, e) in self['conn'] if isinstance(e, tuple) and e[0] == s)
+                else:
+                    return (p for (p, e) in self['conn'] if e == (s, o))
+            else:
+                if o is None:
+                    return (e[1] for (p_, e) in self['conn'] if isinstance(e, tuple) and e[0] == s and p_ == p)
+                else:
+                    return (p, (s, o)) in self['conn']
 
     def as_adjacency(self, omit_empty=True, direction='outgoing'):
         """
@@ -345,3 +389,26 @@ def maybe_cycle_elem(it):
                 bs.add(d)
                 bs.update(reachable[d])
     return None
+
+
+def squash(it, axis):
+    """
+    Squashes a list tuples along a position in the tuples.
+
+    E.g.
+    >>> list(squash({(1, 2), (1, 3), (2, 4), (2, 5)}, axis=1))
+    [(1, [2, 3]), (2, [4, 5])]
+    >>> list(squash([(1, 2, 3), (1, 20, 3), (1, 20, 4)], axis=1))
+    [(1, [2, 20], 3), (1, [20], 4)]
+    """
+    lookup = {}
+
+    for tup in it:
+        init = tup[:axis]
+        option = tup[axis]
+        rest = tup[axis+1:]
+        check = init + rest
+        lookup.setdefault(check, []).append(option)
+
+    for context, focus in lookup.items():
+        yield (*context[:axis], focus, *context[axis:])
